@@ -162,6 +162,23 @@ impl Connection {
         Ok(())
     }
 
+    pub(crate) async fn queue_login_info_v103(&mut self) -> Result<()> {
+        let _player_id = self.player.id;
+        let _position = self.player.position;
+
+        // self.queue_message(self.prepare_login().await?).await;
+        self.queue_message(self.prepare_stats().await?).await;
+        // self.queue_message(self.prepare_equipped_item(InventorySlot::RightHand, 0x005a, 0).await?).await;        
+        self.queue_message(self.prepare_map(self.player.position, 18, 14, 1).await?).await;
+        // self.queue_message(self.prepare_update_character(player_id, CharacterUpdateType::LightLevel, 0).await?).await;
+        // self.queue_message(self.prepare_magic_effect(MagicEffect::Teleport, position).await?).await;
+        // self.queue_message(self.prepare_world_light(6).await?).await;
+        // self.queue_message(self.prepare_status_message("Hello, World!").await?).await;
+        // self.queue_message(self.prepare_message_of_the_day(0x0101, "Hello, World!").await?).await;
+
+        Ok(())
+    }
+
     pub async fn prepare_world_light(&self, light_level: u8) -> Result<Vec<u8>> {
         let mut buf = Cursor::new(Vec::<u8>::new());
 
@@ -373,7 +390,7 @@ impl Connection {
             buf.write_u16::<LE>(stats.mana_points).await?;
             buf.write_u8(stats.magic_level).await?;
             buf.write_u16::<LE>(stats.ammunition).await?;
-        } else {
+        } else if self.protocol >= Protocol::Tibia300 {
             buf.write_u8(stats.intelligence).await?;
             buf.write_u8(stats.strength).await?;
             buf.write_u8(stats.dexterity).await?;

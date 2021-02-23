@@ -97,9 +97,11 @@ impl Connection {
                 }
             };
 
-            if let Ok(msg) = self.receiver.try_recv() {
-                match msg {
-                    WorldToPlayerMessage::WorldLight(light_level) => self.queue_message(self.prepare_world_light(light_level).await?).await
+            if self.protocol >= Protocol::Tibia300 {
+                if let Ok(msg) = self.receiver.try_recv() {
+                    match msg {
+                        WorldToPlayerMessage::WorldLight(light_level) => self.queue_message(self.prepare_world_light(light_level).await?).await
+                    }
                 }
             }
 

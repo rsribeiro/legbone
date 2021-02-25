@@ -166,7 +166,8 @@ async fn account_login(stream: &mut TcpStream, message_length: u16) -> Result<(O
 
         log::trace!("Journey Onward! Account number={}, password={}, protocol={:?}", account_number, password, protocol);
 
-        let msg = send::prepare_character_list().await?;
+        let local_addr = stream.local_addr()?;
+        let msg = send::prepare_character_list(local_addr).await?;
         stream.write_u16::<LE>(msg.len() as u16).await?;
         stream.write_all(&msg).await?;
         stream.flush().await?;

@@ -33,7 +33,7 @@ pub enum Protocol {
 #[derive(Clap)]
 #[clap(version = "0.1.0", author = "Ricardo")]
 pub struct Opts {
-    #[clap(short, long, default_value="127.0.0.1", about="Server IP Address (v4)")]
+    #[clap(short, long, default_value="0.0.0.0", about="Server IP Address (v4)")]
     pub ip: Ipv4Addr,
     #[clap(short, long, default_value="7171", about="Server port")]
     pub port: u16,

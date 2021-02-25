@@ -1,5 +1,6 @@
 use async_std::{
     prelude::*,
+    net::SocketAddr,
     io::Cursor,
 };
 use crate::{
@@ -31,8 +32,7 @@ use crate::{
         encoding,
         ChatType
     },
-    io::WriteExt,
-    Opts,
+    io::WriteExt
 };
 use super::Connection;
 use byteorder_async::{
@@ -41,9 +41,9 @@ use byteorder_async::{
 };
 use anyhow::{
     Result,
-    Error
+    Error,
+    anyhow,
 };
-use clap::Clap;
 
 impl Connection {
     async fn send_message(&mut self, message: &[u8]) -> Result<()> {
@@ -527,25 +527,33 @@ impl Connection {
     }
 }
 
-pub async fn prepare_character_list() -> Result<Vec<u8>> {
-    let opts: Opts = Opts::parse();
-    let ip = opts.ip;
-    let port = opts.port;
-    let chararacter_count = 1;
-    let character_name = "Player";
-    let world = "legbone";
+pub async fn prepare_character_list(server_address: SocketAddr) -> Result<Vec<u8>> {
+    match server_address {
+        SocketAddr::V4(server_address) => {
+            log::trace!("Local Address = {:?}", server_address);
 
-    let mut buf = Cursor::new(Vec::<u8>::new());
-    buf.write_u8(0x64).await?;
-    buf.write_u8(chararacter_count).await?;
-    for _ in 0..chararacter_count {
-        buf.write_length_and_string(character_name).await?;
-        buf.write_length_and_string(world).await?;
-        for &octet in ip.octets().iter() {
-            buf.write_u8(octet).await?;
+            let ip = server_address.ip();
+            let port = server_address.port();
+            let chararacter_count = 1;
+            let character_name = "Player";
+            let world = "legbone";
+
+            let mut buf = Cursor::new(Vec::<u8>::new());
+            buf.write_u8(0x64).await?;
+            buf.write_u8(chararacter_count).await?;
+            for _ in 0..chararacter_count {
+                buf.write_length_and_string(character_name).await?;
+                buf.write_length_and_string(world).await?;
+                for &octet in ip.octets().iter() {
+                    buf.write_u8(octet).await?;
+                }
+                buf.write_u16::<LE>(port).await?;
+            }
+
+            Ok(buf.into_inner())
         }
-        buf.write_u16::<LE>(port).await?;
+        SocketAddr::V6(_) => {
+            return Err(anyhow!("Server is listening on ipv6"));
+        }
     }
-
-    Ok(buf.into_inner())
 }

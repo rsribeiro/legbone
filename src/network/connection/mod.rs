@@ -74,11 +74,7 @@ impl Connection {
 
             log::info!("Player logged in: protocol={:?}, id={}, name={}, ", protocol, player.id, player.name);
             let mut client = Connection::new(stream, protocol, player, sender, receiver);
-            if protocol == Protocol::Tibia103 {
-                client.queue_login_info_v103().await?;
-            } else {
-                client.queue_login_info().await?;
-            }
+            client.queue_login_info().await?;
             client.flush_message_queue().await?;
         
             Ok(Some(client))

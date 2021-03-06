@@ -75,6 +75,7 @@ impl Connection {
         while let Ok(message) = self.message_queue.pop() {
             big_message.write_u16::<LE>(message.len() as u16 + 2).await?;
             big_message.write_all(&message).await?;
+            log::trace!("SENDING: {:02x?} (len={})", message, message.len());
         }
 
         let message = big_message.into_inner();
@@ -138,43 +139,38 @@ impl Connection {
         let player_id = self.player.id;
         let position = self.player.position;
 
-        self.queue_message(self.prepare_login().await?).await;
-        self.queue_message(self.prepare_stats().await?).await;
-        if self.protocol >= Protocol::Tibia400 {
-            self.queue_message(self.prepare_skills().await?).await;
+        if self.protocol == Protocol::Tibia103 {
+            self.queue_message(self.prepare_login().await?).await;
+
+            self.queue_message(self.prepare_equipped_item(InventorySlot::Bag, 0x013d, 0).await?).await;
+            self.queue_message(self.prepare_equipped_item(InventorySlot::RightHand, 0x015a, 0).await?).await;
+            self.queue_message(self.prepare_equipped_item(InventorySlot::LeftHand, 0x025a, 0).await?).await;
+
+            self.queue_message(self.prepare_map(self.player.position, 18, 14, 1).await?).await;
+            self.queue_message(self.prepare_status_message("Hello, World!").await?).await;
+            self.queue_message(self.prepare_message_of_the_day(0x0101, "Hello, World!").await?).await;
+        } else {
+            self.queue_message(self.prepare_login().await?).await;
+            self.queue_message(self.prepare_stats().await?).await;
+            if self.protocol >= Protocol::Tibia400 {
+                self.queue_message(self.prepare_skills().await?).await;
+            }
+            self.queue_message(self.prepare_equipped_item(InventorySlot::Helmet, 0x005c, 0).await?).await;
+            self.queue_message(self.prepare_equipped_item(InventorySlot::Necklace, 0x007b, 0).await?).await;
+            self.queue_message(self.prepare_equipped_item(InventorySlot::Bag, 0x013d, 0).await?).await;
+            self.queue_message(self.prepare_equipped_item(InventorySlot::Armor, 0x007a, 0).await?).await;
+            self.queue_message(self.prepare_equipped_item(InventorySlot::LeftHand, 0x085d, 0).await?).await;
+            self.queue_message(self.prepare_equipped_item(InventorySlot::RightHand, 0x065a, 0).await?).await;
+            self.queue_message(self.prepare_equipped_item(InventorySlot::Legs, 0x0079, 0).await?).await;
+            self.queue_message(self.prepare_equipped_item(InventorySlot::Boots, 0x0378, 0).await?).await;
+            
+            self.queue_message(self.prepare_map(self.player.position, 18, 14, 3).await?).await;
+            self.queue_message(self.prepare_update_character(player_id, CharacterUpdateType::LightLevel, 0).await?).await;
+            self.queue_message(self.prepare_magic_effect(MagicEffect::Teleport, position).await?).await;
+            self.queue_message(self.prepare_world_light(6).await?).await;
+            self.queue_message(self.prepare_status_message("Hello, World!").await?).await;
+            self.queue_message(self.prepare_message_of_the_day(0x0101, "Hello, World!").await?).await;
         }
-        // self.queue_message(self.prepare_equipped_item(InventorySlot::Helmet, 0x005c, 0).await?).await;
-        // self.queue_message(self.prepare_equipped_item(InventorySlot::Necklace, 123, 0).await?).await;
-        self.queue_message(self.prepare_equipped_item(InventorySlot::Bag, 0x013d, 0).await?).await;
-        self.queue_message(self.prepare_equipped_item(InventorySlot::Armor, 0x007a, 0).await?).await;
-        // self.queue_message(self.prepare_equipped_item(InventorySlot::LeftHand, 0x085d, 0).await?).await;
-        self.queue_message(self.prepare_equipped_item(InventorySlot::RightHand, 0x065a, 0).await?).await;
-        // self.queue_message(self.prepare_equipped_item(InventorySlot::Legs, 0x0079, 0).await?).await;
-        // self.queue_message(self.prepare_equipped_item(InventorySlot::Boots, 0x0378, 0).await?).await;
-        
-        self.queue_message(self.prepare_map(self.player.position, 18, 14, 3).await?).await;
-        self.queue_message(self.prepare_update_character(player_id, CharacterUpdateType::LightLevel, 0).await?).await;
-        self.queue_message(self.prepare_magic_effect(MagicEffect::Teleport, position).await?).await;
-        self.queue_message(self.prepare_world_light(6).await?).await;
-        self.queue_message(self.prepare_status_message("Hello, World!").await?).await;
-        self.queue_message(self.prepare_message_of_the_day(0x0101, "Hello, World!").await?).await;
-
-        Ok(())
-    }
-
-    pub(crate) async fn queue_login_info_v103(&mut self) -> Result<()> {
-        let _player_id = self.player.id;
-        let _position = self.player.position;
-
-        // self.queue_message(self.prepare_login().await?).await;
-        self.queue_message(self.prepare_stats().await?).await;
-        // self.queue_message(self.prepare_equipped_item(InventorySlot::RightHand, 0x005a, 0).await?).await;        
-        self.queue_message(self.prepare_map(self.player.position, 18, 14, 1).await?).await;
-        // self.queue_message(self.prepare_update_character(player_id, CharacterUpdateType::LightLevel, 0).await?).await;
-        // self.queue_message(self.prepare_magic_effect(MagicEffect::Teleport, position).await?).await;
-        // self.queue_message(self.prepare_world_light(6).await?).await;
-        // self.queue_message(self.prepare_status_message("Hello, World!").await?).await;
-        // self.queue_message(self.prepare_message_of_the_day(0x0101, "Hello, World!").await?).await;
 
         Ok(())
     }
@@ -284,7 +280,7 @@ impl Connection {
 
         log::trace!("center = {:?}, corner_1 = {:?}, corner_2 = {:?}", position, corner, corner_2);
         log::trace!("width = {:?}, height={:?}, layers={:?}", width, height, layers);
-
+        
         for z in 0..layers {
             let position = Position::new(position.x, position.y, z);
             buf.write_all(&self.prepare_layer(position, corner, width, height).await?).await?;
@@ -293,7 +289,7 @@ impl Connection {
         buf.write_u8(0xfe).await?;
         buf.write_u8(0x00).await?;
 
-        log::trace!("MAP = {:02x?}", buf);
+        // log::trace!("MAP = {:02x?}", buf);
 
         Ok(buf.into_inner())
     }
@@ -320,6 +316,25 @@ impl Connection {
         }
 
         if position == self.player.position {
+            buf.write_all(&self.prepare_character_on_map().await?).await?;
+        }
+
+        if self.protocol == Protocol::Tibia103 {
+            buf.write_u8(0xff).await?;
+            
+        }
+
+        buf.write_u8(0xff).await?;
+        Ok(buf.into_inner())
+    }
+
+    async fn prepare_character_on_map(&self) -> Result<Vec<u8>> {
+        let mut buf = Cursor::new(Vec::<u8>::new());
+
+        if self.protocol == Protocol::Tibia103 {
+            buf.write_u8(AuxiliaryHeaderSend::Character as u8).await?;
+            buf.write_outfit_colors(self.player.outfit).await?;
+        } else {
             buf.write_u8(AuxiliaryHeaderSend::Character as u8).await?;
             buf.write_u32::<LE>(0).await?;    //knows creature
             buf.write_u32::<LE>(self.player.id).await?;
@@ -333,12 +348,7 @@ impl Connection {
             buf.write_u8(0).await?;           //light level=0
         }
 
-        if buf.position() == 0 {
-            Ok(Vec::new())
-        } else {
-            buf.write_u8(0xff).await?;
-            Ok(buf.into_inner())
-        }
+        Ok(buf.into_inner())
     }
 
     async fn prepare_status_message(&self, status: &str) -> Result<Vec<u8>> {
@@ -359,8 +369,7 @@ impl Connection {
             buf.write_u8(0x0a).await?;
         }
 
-        buf.write_all(message.as_bytes()).await?;
-        buf.write_u8(0).await?;
+        buf.write_null_terminated_string(message).await?;
 
         Ok(buf.into_inner())
     }
@@ -369,9 +378,14 @@ impl Connection {
         let mut buf = Cursor::new(Vec::<u8>::new());
 
         buf.write_header(HeaderSend::EquippedItem, self.protocol).await?;
-        buf.write_u8(slot as u8).await?;
-        buf.write_u16::<LE>(item).await?;
-        buf.write_u8(stack).await?;
+        if self.protocol == Protocol::Tibia103 {
+            buf.write_u16::<LE>(item).await?;
+            buf.write_u8(slot as u8).await?;
+        } else {
+            buf.write_u8(slot as u8).await?;
+            buf.write_u16::<LE>(item).await?;
+            buf.write_u8(stack).await?;
+        }
 
         Ok(buf.into_inner())
     }
@@ -523,22 +537,26 @@ impl Connection {
         let mut buf = Cursor::new(Vec::<u8>::new());
 
         log::trace!("move character from {:?} to {:?}, direction={:?}", from, to, direction);
-
-        let (width, height) = match direction {
-            Direction::North | Direction::South => (18,1),
-            Direction::East | Direction::West => (1,14),
-        };
-        let center = to + match direction {
-            Direction::North => (0,-6,0),
-            Direction::East => (9,0,0),
-            Direction::South => (0,7,0),
-            Direction::West => (-8,0,0),
+        let (width, height, layers, center) = if self.protocol == Protocol::Tibia103 {
+            (18, 14, 1, Position::new(0, 0, 7))
+        } else {
+            let (width, height) = match direction {
+                Direction::North | Direction::South => (18,1),
+                Direction::East | Direction::West => (1,14),
+            };
+            let center = to + match direction {
+                Direction::North => (0,-6,0),
+                Direction::East => (9,0,0),
+                Direction::South => (0,7,0),
+                Direction::West => (-8,0,0),
+            };
+            (width, height, 3, center)
         };
 
         log::trace!("center = {:?}", center);
 
         buf.write_header(direction.into(), self.protocol).await?;
-        buf.write_all(self.prepare_map_internal(center, width, height, 3).await?.as_slice()).await?;
+        buf.write_all(self.prepare_map_internal(center, width, height, layers).await?.as_slice()).await?;
 
         Ok(buf.into_inner())
     }

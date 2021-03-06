@@ -10,7 +10,8 @@ use crate::{
     character::{
         player::InventorySlot,
         Direction
-    }
+    },
+    Protocol
 };
 use anyhow::Result;
 
@@ -39,8 +40,16 @@ impl Position {
         Self{x,y,z}
     }
 
-    pub fn get_qualifier(&self) -> Result<PositionQualifier> {
-        if self.x == 0xffff {
+    pub fn get_qualifier(&self, protocol: Protocol) -> Result<PositionQualifier> {
+        if protocol == Protocol::Tibia103 && self.x == 0xff {
+            if self.y > 0 && self.y <= 8 {
+                Ok(PositionQualifier::Inventory((self.y as u8).try_into()?))
+            } else {
+                log::trace!("Container qualifier(?): y = {}/0x{:02x?}", self.y, self.y);
+                Ok(PositionQualifier::None)
+                // Ok(PositionQualifier::Container(self.y, self.z))
+            }
+        } else if protocol != Protocol::Tibia103 && self.x == 0xffff {
             if self.y & 0x40 == 0 {
                 Ok(PositionQualifier::Inventory((self.y as u8).try_into()?))
             } else {

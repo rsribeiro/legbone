@@ -55,12 +55,21 @@ pub trait ReadExt: Read + Unpin + Sized {
         Ok((high, low))
     }
     
-    async fn read_position(&mut self, _protocol: Protocol) -> Result<Position> {
-        let x = self.read_u16::<LE>().await?;
-        let y = self.read_u16::<LE>().await?;
-        let z = self.read_u8().await?;
+    async fn read_position(&mut self, protocol: Protocol) -> Result<Position> {
+        let position = if protocol == Protocol::Tibia103 {
+            let x = self.read_u8().await?;
+            let y = self.read_u8().await?;
+
+            Position::new(x as u16, y as u16, 7)
+        } else {
+            let x = self.read_u16::<LE>().await?;
+            let y = self.read_u16::<LE>().await?;
+            let z = self.read_u8().await?;
+
+            Position::new(x,y,z)
+        };
     
-        Ok( Position::new(x,y,z))
+        Ok(position)
     }
     
     /// Reads string until null byte is found. Unsafe because it can enter an infinite loop
@@ -125,19 +134,28 @@ pub trait WriteExt: Write + Unpin + Sized {
     }
 
     /// For Tibia 3.x and 4.x the client receives an u8 header. Later clients use u16
+    /// Client 1.03 seems to need 4 bytes before header. Meaning of bytes unknown
     async fn write_header(&mut self, header: HeaderSend, protocol: Protocol) -> Result<()> {
         if protocol > Protocol::Tibia400 {
             self.write_u16::<LE>(header as u16).await?;
         } else {
+            if protocol == Protocol::Tibia103 {
+                self.write_zeroes(4).await?;
+            }
             self.write_u8(header as u8).await?;
         }
         Ok(())
     }
 
-    async fn write_position(&mut self, position: Position, _protocol: Protocol) -> Result<()> {
-        self.write_u16::<LE>(position.x).await?;
-        self.write_u16::<LE>(position.y).await?;
-        self.write_u8(position.z).await?;
+    async fn write_position(&mut self, position: Position, protocol: Protocol) -> Result<()> {
+        if protocol == Protocol::Tibia103 {
+            self.write_u8(position.x as u8).await?;
+            self.write_u8(position.y as u8).await?;
+        } else {
+            self.write_u16::<LE>(position.x).await?;
+            self.write_u16::<LE>(position.y).await?;
+            self.write_u8(position.z).await?;
+        }
         
         Ok(())
     }

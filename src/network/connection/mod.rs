@@ -86,7 +86,7 @@ impl Connection {
 
 async fn player_login(stream: &mut TcpStream) -> Result<(Option<Player>,Protocol)> {
     //TODO validate message using initial bytes
-    //300+ = 00, 00, 01, 01, 00
+    //103+ = 00, 00, 01, 01, 00
     //650  = N/A
     stream.skip(5).await?;
 
@@ -105,7 +105,7 @@ async fn player_login(stream: &mut TcpStream) -> Result<(Option<Player>,Protocol
 
 async fn create_new_player(stream: &mut TcpStream) -> Result<(Option<Player>,Protocol)> {
     //TODO validate message using initial bytes
-    //300+ = 00, 00, 00, 01, 00
+    //103+ = 00, 00, 00, 01, 00
     //640+ = N/A
     stream.skip(5).await?;
 
@@ -120,7 +120,7 @@ async fn create_new_player(stream: &mut TcpStream) -> Result<(Option<Player>,Pro
     let gender = stream.read_gender(protocol).await?;
 
     //TODO find out what those bytes mean
-    //300+ = 01, 01
+    //103+ = 01, 01
     stream.skip(2).await?;
 
     let outfit_colors = stream.read_outfit_colors().await?;
@@ -129,7 +129,12 @@ async fn create_new_player(stream: &mut TcpStream) -> Result<(Option<Player>,Pro
     stream.read_string(&mut real_name, 50).await?;
 
     let mut location = String::new();
-    stream.read_string(&mut location, 50).await?;
+    let location_size = if protocol == Protocol::Tibia103 {
+        48
+    } else {
+        50
+    };
+    stream.read_string(&mut location, location_size).await?;
 
     let mut email = String::new();
     stream.read_string(&mut email, 50).await?;

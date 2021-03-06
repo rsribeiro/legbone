@@ -97,9 +97,11 @@ impl Connection {
                 }
             };
 
-            if let Ok(msg) = self.receiver.try_recv() {
-                match msg {
-                    WorldToPlayerMessage::WorldLight(light_level) => self.queue_message(self.prepare_world_light(light_level).await?).await
+            if self.protocol >= Protocol::Tibia300 {
+                if let Ok(msg) = self.receiver.try_recv() {
+                    match msg {
+                        WorldToPlayerMessage::WorldLight(light_level) => self.queue_message(self.prepare_world_light(light_level).await?).await
+                    }
                 }
             }
 
@@ -146,13 +148,44 @@ impl Connection {
     }
 
     async fn receive_push(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
-        let position_from = message.read_position(self.protocol).await?;
-        let object_id = message.read_u16::<LE>().await?;
-        let _stack_pos = message.read_u8().await?;
-        let position_to = message.read_position(self.protocol).await?;
-        let _count = message.read_u8().await?;
+        let (position_from, object_id, stack_pos, position_to, count) = if self.protocol == Protocol::Tibia103 {
+            let position_from = message.read_position(self.protocol).await?;
+            let object_id = message.read_u16::<LE>().await?;
+            let stack_pos = message.read_u8().await?;
+            let position_to = message.read_position(self.protocol).await?;            
 
-        log::trace!("PUSH object={:?}, from={:?}->to={:?}", object_id, position_from, position_to);
+            (position_from, object_id, stack_pos, position_to, None)
+        } else {
+            let position_from = message.read_position(self.protocol).await?;
+            let object_id = message.read_u16::<LE>().await?;
+            let stack_pos = message.read_u8().await?;
+            let position_to = message.read_position(self.protocol).await?;
+            let count = message.read_u8().await?;
+
+            (position_from, object_id, stack_pos, position_to, Some(count))
+        };
+
+        let msg_from = match position_from.get_qualifier(self.protocol)? {
+            PositionQualifier::None => format!("{}", position_from),
+            PositionQualifier::Container(container_index, item_index) => {                
+                format!("(container={}, index={})", item_index, container_index)
+            },
+            PositionQualifier::Inventory(inventory_slot) => {
+                format!("{:?}", inventory_slot)
+            }
+        };
+
+        let msg_to = match position_to.get_qualifier(self.protocol)? {
+            PositionQualifier::None => format!("{}", position_to),
+            PositionQualifier::Container(container_index, item_index) => {                
+                format!("(container={}, index={})", item_index, container_index)
+            },
+            PositionQualifier::Inventory(inventory_slot) => {
+                format!("{:?}", inventory_slot)
+            }
+        };
+
+        log::trace!("PUSH object=0x{:04x?}, from={}->to={}, stack_pos={:?}, count={:?}", object_id, msg_from, msg_to, stack_pos, count);
         
         Ok(())
     }
@@ -216,7 +249,7 @@ impl Connection {
         let stack_pos = message.read_u8().await?;
         let unknown = message.read_u8().await?;
 
-        log::trace!("item_type={}, pos={:?}, item_id=0x{:04x?}, stack_pos={}, unknown={}", item_type, pos, item_id, stack_pos, unknown);
+        log::trace!("item_type={}, pos={}, item_id=0x{:04x?}, stack_pos={}, unknown={}", item_type, pos, item_id, stack_pos, unknown);
         
         let message = self.prepare_open_container().await?;
         self.queue_message(message).await;
@@ -235,7 +268,7 @@ impl Connection {
     async fn receive_look_at(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
         let position = message.read_position(self.protocol).await?;
 
-        let msg = match position.get_qualifier()? {
+        let msg = match position.get_qualifier(self.protocol)? {
             PositionQualifier::None => format!("Looking at position {}", position),
             PositionQualifier::Container(container_index, item_index) => {                
                 format!("Looking at index {} inside container {}.", item_index, container_index)

@@ -14,7 +14,7 @@ pub mod position;
 pub const MAP_WIDTH: u16 = 50;
 pub const MAP_HEIGHT: u16 = 50;
 pub const MAP_LAYERS: u8 = 16;
-pub const RESPAWN_LOCATION: Position = Position::new(25, 25, 7);
+pub const RESPAWN_LOCATION: Position = Position::new(8, 6, 7);
 
 pub static MAP: OnceCell<Map> = OnceCell::new();
 
@@ -43,10 +43,10 @@ pub fn init_map(map_type: MapType, map_arg: Option<String>) -> Result<()> {
     let map = match map_type {
         MapType::FixedTile => {
             let tile = map_arg.ok_or(anyhow!("Send numeric tile argument on map_arg."))?.parse()?;
-            Map::fixed_tile(tile, MAP_WIDTH, MAP_HEIGHT, 10, 10, RESPAWN_LOCATION)
+            Map::fixed_tile(tile, MAP_WIDTH, MAP_HEIGHT, 0, 0, RESPAWN_LOCATION)
         },
-        MapType::Checkerboard => Map::checkerboard_pattern(MAP_WIDTH, MAP_HEIGHT, 10, 10, RESPAWN_LOCATION),
-        MapType::RookgaardTemple => Map::rookgaard_temple(MAP_WIDTH, MAP_HEIGHT, 10, 10, RESPAWN_LOCATION),
+        MapType::Checkerboard => Map::checkerboard_pattern(MAP_WIDTH, MAP_HEIGHT, 0, 0, RESPAWN_LOCATION),
+        MapType::RookgaardTemple => Map::rookgaard_temple(MAP_WIDTH, MAP_HEIGHT, 0, 0, RESPAWN_LOCATION),
         MapType::File => {
             let _file = map_arg.ok_or(anyhow!("Send file argument on map_arg."))?;
             return Err(anyhow!("Map from file is not yet supported."));

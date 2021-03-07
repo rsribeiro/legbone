@@ -34,13 +34,13 @@ pub enum MagicEffect {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, TryFromPrimitive)]
 enum Fluid {
     None = 0,
-    Water = 1,
-    Blood = 2,
-    Beer = 3,
-    Slime = 4,
-    Lemonade = 5,
-    Milk = 6,
-    WineManaFluid = 7
+    Blue = 1,
+    Red = 2,
+    Brown = 3,
+    Green = 4,
+    Yellow = 5,
+    White = 6,
+    Purple = 7
 }
 
 #[repr(u8)]

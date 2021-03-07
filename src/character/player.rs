@@ -37,7 +37,7 @@ pub struct Stats {
     pub(crate) strength: u8,
     pub(crate) dexterity: u8,
     pub(crate) experience_points: u32,
-    pub(crate)  experience_level: u8,
+    pub(crate) experience_level: u8,
     pub(crate) mana_points: u16,
     pub(crate) magic_level: u8,
     pub(crate) ammunition: u16

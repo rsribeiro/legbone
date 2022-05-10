@@ -72,7 +72,7 @@ impl Connection {
     /// for every queued message.
     async fn send_individual_messages(&mut self) -> Result<()> {
         let mut big_message = Cursor::new(Vec::<u8>::new());
-        while let Ok(message) = self.message_queue.pop() {
+        while let Some(message) = self.message_queue.pop() {
             big_message.write_u16::<LE>(message.len() as u16 + 2).await?;
             big_message.write_all(&message).await?;
             log::trace!("SENDING: {:02x?} (len={})", message, message.len());
@@ -92,7 +92,7 @@ impl Connection {
     /// with just one length
     async fn send_big_message(&mut self) -> Result<()> {
         let mut big_message = Cursor::new(Vec::<u8>::new());
-        while let Ok(message) = self.message_queue.pop() {
+        while let Some(message) = self.message_queue.pop() {
             big_message.write_all(&message).await?;
         }
 
@@ -130,7 +130,9 @@ impl Connection {
         let mut buf = Cursor::new(Vec::<u8>::new());
 
         buf.write_header(HeaderSend::Login, self.protocol).await?;
-        buf.write_u32::<LE>(self.player.id).await?;
+        if self.protocol >= Protocol::Tibia300 {
+            buf.write_u32::<LE>(self.player.id).await?;
+        }
 
         Ok(buf.into_inner())
     }
@@ -334,6 +336,10 @@ impl Connection {
         if self.protocol == Protocol::Tibia103 {
             buf.write_u8(AuxiliaryHeaderSend::Character as u8).await?;
             buf.write_outfit_colors(self.player.outfit).await?;
+            // buf.write_outfit_colors_with_unknown_byte(self.player.outfit, 0xff).await?;
+            // buf.write_outfit_colors(Outfit::new_with_unknown_byte(2, 2, 2, 2, 0xff)).await?;
+            // buf.write_repeated_number(2, 3).await?;
+            // buf.write_zeroes(3).await?;
         } else {
             buf.write_u8(AuxiliaryHeaderSend::Character as u8).await?;
             buf.write_u32::<LE>(0).await?;    //knows creature

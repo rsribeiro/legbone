@@ -18,7 +18,7 @@ use legbone::{
     Opts,
 };
 use anyhow::Result;
-use clap::Clap;
+use clap::Parser;
 
 fn main() -> Result<()> {
     let opts: Opts = Opts::parse();

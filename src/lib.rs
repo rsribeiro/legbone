@@ -8,7 +8,7 @@ mod io;
 mod persistence;
 
 use num_enum::TryFromPrimitive;
-use clap::Clap;
+use clap::Parser;
 use async_std::net::Ipv4Addr;
 use crate::map::MapType;
 
@@ -30,19 +30,19 @@ pub enum Protocol {
     Tibia650 = 650,
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 #[clap(version = "0.1.0", author = "Ricardo")]
 pub struct Opts {
-    #[clap(short, long, default_value="0.0.0.0", about="Server IP Address (v4)")]
+    #[clap(short, long, default_value="0.0.0.0", help="Server IP Address (v4)")]
     pub ip: Ipv4Addr,
-    #[clap(short, long, default_value="7171", about="Server port")]
+    #[clap(short, long, default_value="7171", help="Server port")]
     pub port: u16,
-    #[clap(short, long, default_value="Checkerboard", about="Type of map (Checkerboard, FixedTile, RookgaardTemple or File")]
+    #[clap(short, long, default_value="Checkerboard", help="Type of map (Checkerboard, FixedTile, RookgaardTemple or File")]
     pub map: MapType,
-    #[clap(long, about="Tile if FixedTile map, file if File map")]
+    #[clap(long, help="Tile if FixedTile map, file if File map")]
     pub map_arg: Option<String>,
-    #[clap(short, long, parse(from_occurrences), about="Verbosity level (-v or -vv)")]
+    #[clap(short, long, parse(from_occurrences), help="Verbosity level (-v or -vv)")]
     pub verbose: u32,
-    #[clap(long, about="Disable debug chat commands")]
+    #[clap(long, help="Disable debug chat commands")]
     pub nodebug: bool
 }

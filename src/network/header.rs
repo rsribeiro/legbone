@@ -4,6 +4,7 @@ use crate::character::Direction;
 #[repr(u16)]
 #[derive(Debug, TryFromPrimitive)]
 pub enum HeaderSend {
+    Unknown0x0000 = 0x0000,
     Login = 0x0001,
     Error = 0x0002,
     DataWindow = 0x0003,
@@ -14,6 +15,7 @@ pub enum HeaderSend {
     MoveOneTileEast = 0x000c,
     MoveOneTileSouth = 0x000d,
     MoveOneTileWest = 0x000e,
+    Unknown0x000f = 0x000f,
     CloseContainer = 0x0012,
     OpenContainer = 0x0013,
     EquippedItem = 0x0014,
@@ -26,8 +28,10 @@ pub enum HeaderSend {
     HouseText = 0x0024,
     WorldLight = 0x0028,
     UpdateCharacter = 0x0032,
+    Unknown0x0033 = 0x0033,
     Stats = 0x003c,
     Skills = 0x003d,
+    Unknown0x0064 = 0x0064,
     Chat = 0x0065,
     UserList = 0x0066,
     UserInfo = 0x0067,

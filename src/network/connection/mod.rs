@@ -56,7 +56,7 @@ impl Connection {
             receiver
         }
     }
-    
+
     pub async fn handle_login(mut stream: TcpStream, sender: Sender<PlayerToWorldMessage>) -> Result<Option<Connection>> {
         let length = stream.read_u16::<LE>().await?;
         log::trace!("handle_login: length={}", length);
@@ -66,7 +66,7 @@ impl Connection {
             221|223|723 => create_new_player(&mut stream).await?,
             _ => account_login(&mut stream, length).await?
         };
-    
+
         if let Some(player) = player {
             let (game_sender, receiver) = unbounded();
 
@@ -76,7 +76,7 @@ impl Connection {
             let mut client = Connection::new(stream, protocol, player, sender, receiver);
             client.queue_login_info().await?;
             client.flush_message_queue().await?;
-        
+
             Ok(Some(client))
         } else {
             Ok(None)
@@ -110,7 +110,7 @@ async fn create_new_player(stream: &mut TcpStream) -> Result<(Option<Player>,Pro
     stream.skip(5).await?;
 
     let protocol: Protocol = stream.read_u16::<LE>().await?.try_into()?;
-    
+
     let mut name = String::new();
     stream.read_string(&mut name, 30).await?;
 
@@ -145,7 +145,7 @@ async fn create_new_player(stream: &mut TcpStream) -> Result<(Option<Player>,Pro
     }
 
     log::trace!("New Game! Name={}, password={}, real name={}, location={}, e-mail={}, comment={}, protocol={:?}, outfit={:?}, gender={:?}", name, password, real_name, location, email, comment, protocol, outfit_colors, gender);
-    
+
     let mut player = persistence::create_player(&name);
     player.outfit = outfit_colors;
     player.gender = gender;

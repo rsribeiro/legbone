@@ -118,6 +118,14 @@ pub trait WriteExt: Write + Unpin + Sized {
         Ok(())
     }
 
+    async fn write_outfit_colors_with_unknown_byte(&mut self, outfit: Outfit, unknown_byte: u8) -> Result<()> {
+        self.write_u4(outfit.legs, outfit.shoes).await?;
+        self.write_u4(outfit.head, outfit.body).await?;
+        self.write_u8(unknown_byte).await?;
+        Ok(())
+    }
+
+    ///Writes two u4's as an u8
     async fn write_u4(&mut self, high: u8, low: u8) -> Result<()> {
         self.write_u8((high << 4) + low).await?;
         Ok(())

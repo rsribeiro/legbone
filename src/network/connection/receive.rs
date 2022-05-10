@@ -37,7 +37,7 @@ use byteorder_async::{
     AsyncReadByteOrder
 };
 use anyhow::Result;
-use clap::Clap;
+use clap::Parser;
 
 impl Connection {
     pub async fn handle_connection(&mut self) -> Result<()> {

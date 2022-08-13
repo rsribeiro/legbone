@@ -100,7 +100,9 @@ impl Connection {
     }
 
     pub async fn queue_message(&self, message: Vec<u8>) {
-        self.message_queue.push(message);
+        if !message.is_empty() {
+            self.message_queue.push(message);
+        }
     }
 
     pub async fn prepare_info(&self, message: &str) -> Result<Vec<u8>> {
@@ -165,7 +167,7 @@ impl Connection {
             self.queue_message(self.prepare_equipped_item(InventorySlot::RightHand, 0x065a, 0).await?).await;
             self.queue_message(self.prepare_equipped_item(InventorySlot::Legs, 0x0079, 0).await?).await;
             self.queue_message(self.prepare_equipped_item(InventorySlot::Boots, 0x0378, 0).await?).await;
-            
+
             self.queue_message(self.prepare_map(self.player.position, 18, 14, 3).await?).await;
             self.queue_message(self.prepare_update_character(player_id, CharacterUpdateType::LightLevel, 0).await?).await;
             self.queue_message(self.prepare_magic_effect(MagicEffect::Teleport, position).await?).await;
@@ -282,7 +284,7 @@ impl Connection {
 
         log::trace!("center = {:?}, corner_1 = {:?}, corner_2 = {:?}", position, corner, corner_2);
         log::trace!("width = {:?}, height={:?}, layers={:?}", width, height, layers);
-        
+
         for z in 0..layers {
             let position = Position::new(position.x, position.y, z);
             buf.write_all(&self.prepare_layer(position, corner, width, height).await?).await?;
@@ -323,7 +325,6 @@ impl Connection {
 
         if self.protocol == Protocol::Tibia103 {
             buf.write_u8(0xff).await?;
-            
         }
 
         buf.write_u8(0xff).await?;
@@ -401,7 +402,7 @@ impl Connection {
 
         let stats = self.player.stats;
         buf.write_header(HeaderSend::Stats, self.protocol).await?;
-        
+
         buf.write_u16::<LE>(stats.health_points).await?;
         buf.write_u16::<LE>(stats.capacity).await?;
         if self.protocol >= Protocol::Tibia400 {
@@ -470,7 +471,7 @@ impl Connection {
         //for each player online
         {
             buf.write_all(self.player.name.as_bytes()).await?;
-            buf.write_u8('\n' as u8).await?;
+            buf.write_u8(b'\n').await?;
         }
 
         buf.write_u8(0).await?;
@@ -511,7 +512,7 @@ impl Connection {
 
         //Add each item inside container
         //TODO send non hardcoded items
-        for _ in 0..5 {    
+        for _ in 0..5 {
             buf.write_u16::<LE>(0x005a).await?;//item_id
         }
 
@@ -543,20 +544,21 @@ impl Connection {
         let mut buf = Cursor::new(Vec::<u8>::new());
 
         log::trace!("move character from {:?} to {:?}, direction={:?}", from, to, direction);
-        let (width, height, layers, center) = if self.protocol == Protocol::Tibia103 {
-            (18, 14, 1, Position::new(0, 0, 7))
+
+        let (width, height) = match direction {
+            Direction::North | Direction::South => (18,1),
+            Direction::East | Direction::West => (1,14),
+        };
+        let center = to + match direction {
+            Direction::North => (0,-6,0),
+            Direction::East => (9,0,0),
+            Direction::South => (0,7,0),
+            Direction::West => (-8,0,0),
+        };
+        let layers = if self.protocol == Protocol::Tibia103 {
+            1
         } else {
-            let (width, height) = match direction {
-                Direction::North | Direction::South => (18,1),
-                Direction::East | Direction::West => (1,14),
-            };
-            let center = to + match direction {
-                Direction::North => (0,-6,0),
-                Direction::East => (9,0,0),
-                Direction::South => (0,7,0),
-                Direction::West => (-8,0,0),
-            };
-            (width, height, 3, center)
+            3
         };
 
         log::trace!("center = {:?}", center);
@@ -594,7 +596,7 @@ pub async fn prepare_character_list(server_address: SocketAddr) -> Result<Vec<u8
             Ok(buf.into_inner())
         }
         SocketAddr::V6(_) => {
-            return Err(anyhow!("Server is listening on ipv6"));
+            Err(anyhow!("Server is listening on ipv6"))
         }
     }
 }

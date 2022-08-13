@@ -181,7 +181,7 @@ async fn account_login(stream: &mut TcpStream, message_length: u16) -> Result<(O
         Ok((None, protocol))
     } else {
         log::error!("Unrecognized login message. Protocol={:?}, length={}", protocol, message_length);
-        return Err(anyhow!("Unrecognized login message. Protocol={:?}, length={}", protocol, message_length))
+        Err(anyhow!("Unrecognized login message. Protocol={:?}, length={}", protocol, message_length))
     }
 }
 

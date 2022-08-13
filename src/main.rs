@@ -26,7 +26,7 @@ fn main() -> Result<()> {
     let log_level = match opts.verbose {
         0 => log::LevelFilter::Info,
         1 => log::LevelFilter::Debug,
-        2 | _ => log::LevelFilter::Trace,
+        _ => log::LevelFilter::Trace,
     };
 
     env_logger::Builder::new()
@@ -39,7 +39,7 @@ fn main() -> Result<()> {
     log::info!("log level = {:?}", log_level);
 
     let socket_addr = SocketAddr::from((opts.ip, opts.port));
-    
+
     if let Err(err) = legbone::map::init_map(opts.map, opts.map_arg) {
         panic!("Error initializing map: {:?}", err);
     }
@@ -63,7 +63,7 @@ async fn game_loop(world: Arc<RwLock<World>>, socket_addr: SocketAddr) -> Result
         let stream = stream?;
 
         let sender_clone = sender.clone();
-            
+
         let _handle = task::spawn(async move {
             log::info!("New connection: {}", stream.peer_addr().unwrap());
             match Connection::handle_login(stream, sender_clone).await {

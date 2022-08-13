@@ -31,6 +31,7 @@ impl Connection {
         Ok(())
     }
 
+    #[allow(clippy::unit_arg)]
     async fn debug_command(&self, command: &str, args: Vec<&str>) -> Result<()> {
         log::debug!("Received debug command {:?}", command);
         match command {
@@ -100,7 +101,7 @@ impl Connection {
 
                 let msg = &format!("chat_type=0x{:02x?}", chat_type);
                 log::trace!("{}", msg);
-                
+
                 self.queue_message(self.prepare_chat(chat_type, msg, Some(&self.player), Some(self.player.position)).await?).await;
                 Ok(())
             },

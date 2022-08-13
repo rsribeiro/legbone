@@ -48,9 +48,9 @@ impl Connection {
                     let mut message = vec![0_u8; length as usize];
                     self.stream.read_exact(&mut message).await?;
                     log::trace!("Message received: length={}, bytes={:02x?}", length, message);
-        
+
                     let mut message = Cursor::new(message);
-        
+
                     match message.read_u16::<LE>().await?.try_into() {
                         Ok(header) => {
                             log::trace!("Message received from client: {:?}", header);
@@ -152,7 +152,7 @@ impl Connection {
             let position_from = message.read_position(self.protocol).await?;
             let object_id = message.read_u16::<LE>().await?;
             let stack_pos = message.read_u8().await?;
-            let position_to = message.read_position(self.protocol).await?;            
+            let position_to = message.read_position(self.protocol).await?;
 
             (position_from, object_id, stack_pos, position_to, None)
         } else {
@@ -167,7 +167,7 @@ impl Connection {
 
         let msg_from = match position_from.get_qualifier(self.protocol)? {
             PositionQualifier::None => format!("{}", position_from),
-            PositionQualifier::Container(container_index, item_index) => {                
+            PositionQualifier::Container(container_index, item_index) => {
                 format!("(container={}, index={})", item_index, container_index)
             },
             PositionQualifier::Inventory(inventory_slot) => {
@@ -177,7 +177,7 @@ impl Connection {
 
         let msg_to = match position_to.get_qualifier(self.protocol)? {
             PositionQualifier::None => format!("{}", position_to),
-            PositionQualifier::Container(container_index, item_index) => {                
+            PositionQualifier::Container(container_index, item_index) => {
                 format!("(container={}, index={})", item_index, container_index)
             },
             PositionQualifier::Inventory(inventory_slot) => {
@@ -186,7 +186,7 @@ impl Connection {
         };
 
         log::trace!("PUSH object=0x{:04x?}, from={}->to={}, stack_pos={:?}, count={:?}", object_id, msg_from, msg_to, stack_pos, count);
-        
+
         Ok(())
     }
 
@@ -223,7 +223,7 @@ impl Connection {
 
             outfit
         };
-        
+
         self.queue_message(self.prepare_update_outfit(self.player.id, CharacterOutfit::Human, outfit).await?).await;
         self.player.outfit = outfit;
 
@@ -238,7 +238,7 @@ impl Connection {
     async fn receive_set_target(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
         let target_id = message.read_u32::<LE>().await?;
         log::trace!("Set target, id={}", target_id);
-        
+
         Ok(())
     }
 
@@ -250,7 +250,7 @@ impl Connection {
         let unknown = message.read_u8().await?;
 
         log::trace!("item_type={}, pos={}, item_id=0x{:04x?}, stack_pos={}, unknown={}", item_type, pos, item_id, stack_pos, unknown);
-        
+
         let message = self.prepare_open_container().await?;
         self.queue_message(message).await;
 
@@ -270,7 +270,7 @@ impl Connection {
 
         let msg = match position.get_qualifier(self.protocol)? {
             PositionQualifier::None => format!("Looking at position {}", position),
-            PositionQualifier::Container(container_index, item_index) => {                
+            PositionQualifier::Container(container_index, item_index) => {
                 format!("Looking at index {} inside container {}.", item_index, container_index)
             },
             PositionQualifier::Inventory(inventory_slot) => {
@@ -292,14 +292,14 @@ impl Connection {
         let mut msg = self.prepare_update_object(self.player.position, ObjectUpdateType::Update, 1).await?;
         msg.extend(self.prepare_change_direction(self.player.id, direction).await?);
         self.queue_message(msg).await;
-        
+
         Ok(())
     }
 
     async fn receive_auto_walk(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
         let position = message.read_position(self.protocol).await?;
         log::trace!("Auto walk to {:?}", position);
-       
+
         Ok(())
     }
 
@@ -354,12 +354,12 @@ impl Connection {
             self.queue_message(self.prepare_magic_effect(MagicEffect::Puff, self.player.position).await?).await;
             log::trace!("Error on debug command: {:?}", err);
         }
-        
+
         Ok(())
     }
 
     async fn receive_qualified_chat(&mut self, msg: &str) -> Result<()> {
-        match TryInto::<ChatType>::try_into(msg.chars().skip(1).next()) {
+        match TryInto::<ChatType>::try_into(msg.chars().nth(1)) {
             Ok(chat_type) => {
                 self.queue_message(self.prepare_chat(chat_type, &msg[3..], Some(&self.player), Some(self.player.position)).await?).await;
             },

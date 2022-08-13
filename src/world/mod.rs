@@ -45,7 +45,7 @@ impl World {
     pub fn init_loop(world: &Arc<RwLock<World>>) {
         let senders = Arc::new(RwLock::new(BTreeMap::new()));
         task::spawn(Self::message_loop(world.clone(), senders.clone()));
-        task::spawn(Self::world_loop(world.clone(), senders.clone()));
+        task::spawn(Self::world_loop(world.clone(), senders));
     }
 
     async fn message_loop(world: Arc<RwLock<World>>, senders: Arc<RwLock<BTreeMap<u32, Sender<WorldToPlayerMessage>>>>) {
@@ -72,7 +72,7 @@ impl World {
     async fn world_loop(_world: Arc<RwLock<World>>, senders: Arc<RwLock<BTreeMap<u32, Sender<WorldToPlayerMessage>>>>) {
         let mut hour = 0;
         let mut interval = stream::interval(Duration::from_secs(3));
-        while let Some(_) = interval.next().await {
+        while interval.next().await.is_some() {
             hour = if hour >= 23 {
                 0
             } else {

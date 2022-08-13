@@ -42,13 +42,13 @@ impl FromStr for MapType {
 pub fn init_map(map_type: MapType, map_arg: Option<String>) -> Result<()> {
     let map = match map_type {
         MapType::FixedTile => {
-            let tile = map_arg.ok_or(anyhow!("Send numeric tile argument on map_arg."))?.parse()?;
+            let tile = map_arg.ok_or_else(|| anyhow!("Send numeric tile argument on map_arg."))?.parse()?;
             Map::fixed_tile(tile, MAP_WIDTH, MAP_HEIGHT, 0, 0, RESPAWN_LOCATION)
         },
         MapType::Checkerboard => Map::checkerboard_pattern(MAP_WIDTH, MAP_HEIGHT, 0, 0, RESPAWN_LOCATION),
         MapType::RookgaardTemple => Map::rookgaard_temple(MAP_WIDTH, MAP_HEIGHT, 0, 0, RESPAWN_LOCATION),
         MapType::File => {
-            let _file = map_arg.ok_or(anyhow!("Send file argument on map_arg."))?;
+            let _file = map_arg.ok_or_else(|| anyhow!("Send file argument on map_arg."))?;
             return Err(anyhow!("Map from file is not yet supported."));
         }
     };
@@ -63,7 +63,7 @@ pub struct Map {
 }
 
 #[derive(Debug)]
-pub struct MapMetadata { 
+pub struct MapMetadata {
     width: u16,
     height: u16,
     offset_x: u16,
@@ -82,9 +82,7 @@ impl MapMetadata {
 
 impl MapTile {
     const fn empty() -> Self {
-        MapTile {
-            0: Vec::new()
-        }
+        MapTile(Vec::new())
     }
 
     fn clear(&mut self) -> &mut Self {
@@ -155,7 +153,7 @@ impl Map {
 
     fn rookgaard_temple(width: u16, height: u16, offset_x: u16, offset_y: u16, respawn_location: Position) -> Self {
         let mut map = Self::checkerboard_pattern(width, height, offset_x, offset_y, respawn_location);
-        
+
         let center = map.metadata.respawn_location;
         let x_1 = center.x - 8;
         let x_2 = center.x + 8;
@@ -260,10 +258,7 @@ impl Map {
     }
 
     fn get_map_tile(&mut self, position: Position) -> &mut MapTile {
-        if !self.tiles.contains_key(&position) {
-            let map_tile = MapTile::empty();
-            self.tiles.insert(position, map_tile);
-        }
+        self.tiles.entry(position).or_insert_with(MapTile::empty);
         self.tiles.get_mut(&position).unwrap()
     }
 
@@ -272,7 +267,7 @@ impl Map {
             && position.x < self.metadata.offset_x + self.metadata.width
             && position.y >= self.metadata.offset_y
             && position.y < self.metadata.offset_y + self.metadata.height {
-            self.tiles.get(&position).map(|t|t.0.as_slice())    
+            self.tiles.get(&position).map(|t|t.0.as_slice())
         } else if position.z == 7 {
             Some(&[0x000e; 1]) //water
         } else {

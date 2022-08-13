@@ -11,8 +11,8 @@ use anyhow::{
 
 pub mod position;
 
-pub const MAP_WIDTH: u16 = 50;
-pub const MAP_HEIGHT: u16 = 50;
+pub const MAP_WIDTH: u16 = 100;
+pub const MAP_HEIGHT: u16 = 100;
 pub const MAP_LAYERS: u8 = 16;
 pub const RESPAWN_LOCATION: Position = Position::new(8, 6, 7);
 

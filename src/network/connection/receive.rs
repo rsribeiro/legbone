@@ -313,14 +313,24 @@ impl Connection {
         let new_position = self.player.position + direction;
         self.player.position = new_position;
 
-        //Remove character from old tile
-        let msg = self.prepare_update_object(old_position, ObjectUpdateType::Remove, 1).await?;
-        self.queue_message(msg).await;
+        if self.protocol == Protocol::Tibia103 {
+            // Remove character from old tile
+            // let msg = self.prepare_update_object(old_position, ObjectUpdateType::Remove, 1).await?;
+            // self.queue_message(msg).await;
 
-        //Add character to new tile
-        let mut msg = self.prepare_update_object(new_position, ObjectUpdateType::Add, 1).await?;
-        msg.extend(self.prepare_change_direction(self.player.id, direction).await?);
-        self.queue_message(msg).await;
+            // Add character to new tile
+            // let msg = self.prepare_update_object(new_position, ObjectUpdateType::Add, 1).await?;
+            // self.queue_message(msg).await;
+        } else {
+            // Remove character from old tile
+            let msg = self.prepare_update_object(old_position, ObjectUpdateType::Remove, 1).await?;
+            self.queue_message(msg).await;
+
+            // Add character to new tile
+            let mut msg = self.prepare_update_object(new_position, ObjectUpdateType::Add, 1).await?;
+            msg.extend(self.prepare_change_direction(self.player.id, direction).await?);
+            self.queue_message(msg).await;
+        }
 
         //Move character and update map
         self.queue_message(self.prepare_move_character(direction, old_position, new_position).await?).await;

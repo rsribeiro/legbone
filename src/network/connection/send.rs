@@ -152,7 +152,7 @@ impl Connection {
 
             self.queue_message(self.prepare_map(self.player.position, 18, 14, 1).await?).await;
             self.queue_message(self.prepare_status_message("Hello, World!").await?).await;
-            self.queue_message(self.prepare_message_of_the_day(0x0101, "Hello, World!").await?).await;
+            // self.queue_message(self.prepare_message_of_the_day(0x0101, "Hello, World!").await?).await;
         } else {
             self.queue_message(self.prepare_login().await?).await;
             self.queue_message(self.prepare_stats().await?).await;
@@ -191,11 +191,17 @@ impl Connection {
     pub async fn prepare_update_outfit(&self, id: u32, outfit: CharacterOutfit, outfit_colors: Outfit) -> Result<Vec<u8>> {
         let mut buf = Cursor::new(Vec::<u8>::new());
 
-        buf.write_header(HeaderSend::UpdateCharacter, self.protocol).await?;
-        buf.write_u32::<LE>(id).await?;
-        buf.write_u8(CharacterUpdateType::Outfit as u8).await?;
-        buf.write_u8(outfit as u8).await?;
-        buf.write_outfit_colors(outfit_colors).await?;
+        if self.protocol == Protocol::Tibia103 {
+            // buf.write_header(HeaderSend::UpdateObject, self.protocol).await?;
+            // buf.write_position(self.player.position, self.protocol).await?;
+            // buf.write_u8(ObjectUpdateType::Update as u8).await?;
+        } else {
+            buf.write_header(HeaderSend::UpdateCharacter, self.protocol).await?;
+            buf.write_u32::<LE>(id).await?;
+            buf.write_u8(CharacterUpdateType::Outfit as u8).await?;
+            buf.write_u8(outfit as u8).await?;
+            buf.write_outfit_colors(outfit_colors).await?;
+        }
 
         Ok(buf.into_inner())
     }
@@ -214,14 +220,21 @@ impl Connection {
     pub async fn prepare_update_object(&self, position: Position, update_type: ObjectUpdateType, stack_pos: u8) -> Result<Vec<u8>> {
         let mut buf = Cursor::new(Vec::<u8>::new());
 
-        buf.write_header(HeaderSend::UpdateObject, self.protocol).await?;
-        buf.write_position(position, self.protocol).await?;
-        buf.write_u8(update_type as u8).await?;
-        buf.write_u8(stack_pos).await?;
+        if self.protocol == Protocol::Tibia103 {
+            // buf.write_header(HeaderSend::UpdateObject, self.protocol).await?;
+            // buf.write_position(position, self.protocol).await?;
+            // buf.write_u8(update_type.to_protocol_103_type() as u8).await?;
+            // buf.write_u8(stack_pos).await?;
+        } else {
+            buf.write_header(HeaderSend::UpdateObject, self.protocol).await?;
+            buf.write_position(position, self.protocol).await?;
+            buf.write_u8(update_type as u8).await?;
+            buf.write_u8(stack_pos).await?;
 
-        //remove light?
-        if update_type == ObjectUpdateType::Remove {
-            buf.write_zeroes(6).await?;
+            //remove light?
+            if update_type == ObjectUpdateType::Remove {
+                buf.write_zeroes(6).await?;
+            }
         }
 
         Ok(buf.into_inner())
@@ -530,9 +543,13 @@ impl Connection {
     pub async fn prepare_change_direction(&self, id: u32, direction: Direction) -> Result<Vec<u8>> {
         let mut buf = Cursor::new(Vec::<u8>::new());
 
-        buf.write_u8(AuxiliaryHeaderSend::ChangeDirection as u8).await?;
-        buf.write_u8(direction as u8).await?;
-        buf.write_u32::<LE>(id).await?;
+        if self.protocol == Protocol::Tibia103 {
+
+        } else {
+            buf.write_u8(AuxiliaryHeaderSend::ChangeDirection as u8).await?;
+            buf.write_u8(direction as u8).await?;
+            buf.write_u32::<LE>(id).await?;
+        }
 
         Ok(buf.into_inner())
     }

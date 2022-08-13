@@ -50,3 +50,14 @@ pub enum ObjectUpdateType {
     Add = 1,
     Update = 2
 }
+
+impl ObjectUpdateType {
+    pub fn to_protocol_103_type(self) -> Self {
+        // self
+        match self {
+            Self::Remove => Self::Add,
+            Self::Add => Self::Remove,
+            Self::Update => Self::Update,
+        }
+    }
+}

@@ -2,6 +2,7 @@ use std::{
     convert::TryInto,
     sync::atomic::{
         AtomicU8,
+        AtomicU16,
         Ordering
     }
 };
@@ -94,6 +95,13 @@ impl Connection {
             "userinfo" => Ok(self.queue_message(self.prepare_user_info(args[0]).await?).await),
             "info" => Ok(self.queue_message(self.prepare_info(&args.join(" ")).await?).await),
             "error" => Ok(self.queue_message(self.prepare_error(&args.join(" ")).await?).await),
+            "motd" => {
+                static NEXT_MOTD: AtomicU16 = AtomicU16::new(0x0102);
+                let message_number = NEXT_MOTD.fetch_add(1, Ordering::SeqCst);
+
+                Ok(self.queue_message(self.prepare_message_of_the_day(message_number, &args.join(" ")).await?).await)
+            },
+            "status" => Ok(self.queue_message(self.prepare_status_message(&args.join(" ")).await?).await),
             "panic" => panic!("{}", args.join(" ")),
             "chat" => {
                 static NEXT_TYPE: AtomicU8 = AtomicU8::new(0x41);

@@ -337,10 +337,6 @@ impl Connection {
         if self.protocol == Protocol::Tibia103 {
             buf.write_u8(AuxiliaryHeaderSend::Character as u8).await?;
             buf.write_outfit_colors(self.player.outfit).await?;
-            // buf.write_outfit_colors_with_unknown_byte(self.player.outfit, 0xff).await?;
-            // buf.write_outfit_colors(Outfit::new_with_unknown_byte(2, 2, 2, 2, 0xff)).await?;
-            // buf.write_repeated_number(2, 3).await?;
-            // buf.write_zeroes(3).await?;
         } else {
             buf.write_u8(AuxiliaryHeaderSend::Character as u8).await?;
             buf.write_u32::<LE>(0).await?;    //knows creature
@@ -352,13 +348,14 @@ impl Connection {
             buf.write_u8(CharacterOutfit::Human as u8).await?;
             buf.write_outfit_colors(self.player.outfit).await?;
 
-            buf.write_u8(0).await?;           //light level=0
+            //light level=0
+            buf.write_u8(0).await?;
         }
 
         Ok(buf.into_inner())
     }
 
-    async fn prepare_status_message(&self, status: &str) -> Result<Vec<u8>> {
+    pub async fn prepare_status_message(&self, status: &str) -> Result<Vec<u8>> {
         let mut buf = Cursor::new(Vec::<u8>::new());
 
         buf.write_header(HeaderSend::StatusMessage, self.protocol).await?;
@@ -367,7 +364,7 @@ impl Connection {
         Ok(buf.into_inner())
     }
 
-    async fn prepare_message_of_the_day(&self, message_number: u16, message: &str) -> Result<Vec<u8>> {
+    pub async fn prepare_message_of_the_day(&self, message_number: u16, message: &str) -> Result<Vec<u8>> {
         let mut buf = Cursor::new(Vec::<u8>::new());
 
         buf.write_header(HeaderSend::MessageOfTheDay, self.protocol).await?;

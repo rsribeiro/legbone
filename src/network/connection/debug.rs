@@ -111,6 +111,31 @@ impl Connection {
                 self.queue_message(self.prepare_update_outfit(self.player_id, outfit, outfit_colors).await?).await;
                 Ok(())
             }
+            "cd" => {
+                let direction = args[0].parse::<u8>()?.try_into()?;
+
+                let mut msg = self.prepare_update_object(self.player.position, crate::constants::ObjectUpdateType::Update, 1).await?;
+                msg.extend(self.prepare_change_direction(self.player.id, direction).await?);
+                self.queue_message(msg).await;
+                Ok(())
+            },
+            "gc" => {
+                let chat_msg = args.join(" ");
+                self.queue_message(self.prepare_green_chat(ChatType::Normal, &chat_msg, None, None).await?).await;
+                Ok(())
+            },
+            "u0" => {
+                Ok(self.queue_message(self.prepare_unknown_0x0000().await?).await)
+            },
+            "uf" => {
+                Ok(self.queue_message(self.prepare_unknown_0x000f().await?).await)
+            }
+            "u33" => {
+                Ok(self.queue_message(self.prepare_unknown_0x0033().await?).await)
+            }
+            "u34" => {
+                Ok(self.queue_message(self.prepare_unknown_0x0034().await?).await)
+            }
             _ => Ok(self.queue_message(self.prepare_magic_effect(MagicEffect::Puff, self.player.position).await?).await)
         }
     }

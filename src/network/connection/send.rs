@@ -568,6 +568,54 @@ impl Connection {
 
         Ok(buf.into_inner())
     }
+
+    pub async fn prepare_green_chat(&self, _chat_type: ChatType, msg: &str, _sender: Option<&Player>, _position: Option<Position>) -> Result<Vec<u8>> {
+        let mut buf = Cursor::new(Vec::<u8>::new());
+
+        // let position = match self.protocol {
+        //     Protocol::Tibia300 => position.map(|p| p + (1,1,0)),
+        //     _ => position
+        // };
+
+        buf.write_header(HeaderSend::GreenChat, self.protocol).await?;
+        // buf.write_position(position.unwrap_or(Position::new(0, 0, 0)), self.protocol).await?;
+        // buf.write_u8(chat_type as u8).await?;
+        // if let Some(player) = sender {
+        //     buf.write_all(player.name.as_bytes()).await?;
+        //     buf.write_u8(0x09).await?;//TAB
+        // }
+        buf.write_null_terminated_string(msg).await?;
+
+        Ok(buf.into_inner())
+    }
+
+    pub async fn prepare_unknown_0x0000(&self) -> Result<Vec<u8>> {
+        let mut buf = Cursor::new(Vec::<u8>::new());
+        buf.write_header(HeaderSend::Unknown0x0000, self.protocol).await?;
+
+        Ok(buf.into_inner())
+    }
+
+    pub async fn prepare_unknown_0x000f(&self) -> Result<Vec<u8>> {
+        let mut buf = Cursor::new(Vec::<u8>::new());
+        buf.write_header(HeaderSend::Unknown0x000f, self.protocol).await?;
+
+        Ok(buf.into_inner())
+    }
+
+    pub async fn prepare_unknown_0x0033(&self) -> Result<Vec<u8>> {
+        let mut buf = Cursor::new(Vec::<u8>::new());
+        buf.write_header(HeaderSend::Unknown0x0033, self.protocol).await?;
+
+        Ok(buf.into_inner())
+    }
+
+    pub async fn prepare_unknown_0x0034(&self) -> Result<Vec<u8>> {
+        let mut buf = Cursor::new(Vec::<u8>::new());
+        buf.write_header(HeaderSend::Unknown0x0034, self.protocol).await?;
+
+        Ok(buf.into_inner())
+    }
 }
 
 pub async fn prepare_character_list(server_address: SocketAddr) -> Result<Vec<u8>> {

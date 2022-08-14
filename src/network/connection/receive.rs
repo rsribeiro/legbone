@@ -85,16 +85,12 @@ impl Connection {
                         }
                     }
                 },
-                Err(err) => {
-                    match err.kind() {
-                        std::io::ErrorKind::UnexpectedEof => {
-                            log::info!("Client disconnected.");
-                            break;
-                        },
-                        std::io::ErrorKind::TimedOut => { /* do nothing */ }
-                        _ => return Err(err.into())
-                    }
-                }
+                Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => {
+                    log::info!("Client disconnected.");
+                    break;
+                },
+                Err(err) if err.kind() == std::io::ErrorKind::TimedOut => { /* do nothing */ },
+                Err(err) => return Err(err.into())
             };
 
             if self.protocol >= Protocol::Tibia300 {

@@ -23,10 +23,10 @@ pub enum Protocol {
     Tibia400 = 400,
     Tibia501 = 501,
     // Tibia600 = 600,
-    // Tibia610 = 610, 
+    // Tibia610 = 610,
     Tibia620 = 620,
     Tibia630 = 630,
-    Tibia640 = 640, 
+    Tibia640 = 640,
     Tibia650 = 650,
 }
 
@@ -37,12 +37,16 @@ pub struct Opts {
     pub ip: Ipv4Addr,
     #[clap(short, long, default_value="7171", help="Server port")]
     pub port: u16,
+    #[clap(short, long, parse(from_occurrences), help="Verbosity level (-v or -vv)")]
+    pub verbose: u32,
+    #[clap(long, help="Disable debug chat commands")]
+    pub nodebug: bool,
+
+    //Game world options
     #[clap(short, long, default_value="Checkerboard", help="Type of map (Checkerboard, FixedTile, RookgaardTemple or File")]
     pub map: MapType,
     #[clap(long, help="Tile if FixedTile map, file if File map")]
     pub map_arg: Option<String>,
-    #[clap(short, long, parse(from_occurrences), help="Verbosity level (-v or -vv)")]
-    pub verbose: u32,
-    #[clap(long, help="Disable debug chat commands")]
-    pub nodebug: bool
+    #[clap(long, help="Enable day/night cycle")]
+    pub day_night_cycle_enabled: bool,
 }

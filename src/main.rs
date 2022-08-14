@@ -14,7 +14,10 @@ use async_std::{
 };
 use legbone::{
     network::connection::Connection,
-    world::World,
+    world::{
+        World,
+        WorldOptions
+    },
     Opts,
 };
 use anyhow::Result;
@@ -45,16 +48,19 @@ fn main() -> Result<()> {
     }
 
     let world = World::new();
+    let world_options = WorldOptions {
+        day_night_cycle_enabled: opts.day_night_cycle_enabled
+    };
 
-    task::block_on(game_loop(world, socket_addr))
+    task::block_on(game_loop(world, socket_addr, world_options))
 }
 
-async fn game_loop(world: Arc<RwLock<World>>, socket_addr: SocketAddr) -> Result<()> {
+async fn game_loop(world: Arc<RwLock<World>>, socket_addr: SocketAddr, world_options: WorldOptions) -> Result<()> {
     let listener = TcpListener::bind(socket_addr).await?;
     log::info!("Server listening on address {}", socket_addr);
 
     let sender = {
-        World::init_loop(&world);
+        World::init_loop(&world, world_options);
         world.read().unwrap().sender()
     };
 

@@ -25,7 +25,12 @@ pub mod message;
 
 pub struct World {
     sender: Sender<PlayerToWorldMessage>,
-    receiver: Receiver<PlayerToWorldMessage>
+    receiver: Receiver<PlayerToWorldMessage>,
+}
+
+#[derive(Default, Debug, Clone, Copy)]
+pub struct WorldOptions {
+    pub day_night_cycle_enabled: bool
 }
 
 impl World {
@@ -42,10 +47,10 @@ impl World {
         self.sender.clone()
     }
 
-    pub fn init_loop(world: &Arc<RwLock<World>>) {
+    pub fn init_loop(world: &Arc<RwLock<World>>, world_options: WorldOptions) {
         let senders = Arc::new(RwLock::new(BTreeMap::new()));
         task::spawn(Self::message_loop(world.clone(), senders.clone()));
-        task::spawn(Self::world_loop(world.clone(), senders));
+        task::spawn(Self::world_loop(world.clone(), world_options, senders));
     }
 
     async fn message_loop(world: Arc<RwLock<World>>, senders: Arc<RwLock<BTreeMap<u32, Sender<WorldToPlayerMessage>>>>) {
@@ -69,7 +74,7 @@ impl World {
         }
     }
 
-    async fn world_loop(_world: Arc<RwLock<World>>, senders: Arc<RwLock<BTreeMap<u32, Sender<WorldToPlayerMessage>>>>) {
+    async fn world_loop(_world: Arc<RwLock<World>>, world_options: WorldOptions, senders: Arc<RwLock<BTreeMap<u32, Sender<WorldToPlayerMessage>>>>) {
         let mut hour = 0;
         let mut interval = stream::interval(Duration::from_secs(3));
         while interval.next().await.is_some() {
@@ -82,7 +87,9 @@ impl World {
 
             // log::trace!("Hour: {}, light_level: {}", hour, light_level);
             for (_player_id, sender) in senders.read().unwrap().iter() {
-                let _ = sender.send(WorldToPlayerMessage::WorldLight(light_level));
+                if world_options.day_night_cycle_enabled {
+                    let _ = sender.send(WorldToPlayerMessage::WorldLight(light_level));
+                }
             }
         }
     }

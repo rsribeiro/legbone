@@ -658,7 +658,7 @@ pub async fn prepare_character_list(server_address: SocketAddr) -> Result<Vec<u8
             Ok(buf.into_inner())
         }
         SocketAddr::V6(_) => {
-            Err(anyhow!("Server is listening on ipv6"))
+            Err(anyhow!("Game does not support ipv6"))
         }
     }
 }

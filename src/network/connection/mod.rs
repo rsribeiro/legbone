@@ -3,10 +3,14 @@ mod receive;
 mod debug;
 
 use crossbeam_queue::SegQueue;
-use std::convert::TryInto;
+use std::{
+    time::Duration,
+    convert::TryInto
+};
 use async_std::{
     prelude::*,
     net::TcpStream,
+    io
 };
 use crate::{
     io::ReadExt,
@@ -169,15 +173,27 @@ async fn account_login(stream: &mut TcpStream, message_length: u16) -> Result<(O
         let mut password = String::new();
         stream.read_string(&mut password, password_length).await?;
 
-        log::trace!("Journey Onward! Account number={}, password={}, protocol={:?}", account_number, password, protocol);
-
         let local_addr = stream.local_addr()?;
+        log::trace!("Journey Onward! Account number={account_number}, password={password}, protocol={protocol:?}");
+
         let msg = send::prepare_character_list(local_addr).await?;
         stream.write_u16::<LE>(msg.len() as u16).await?;
         stream.write_all(&msg).await?;
         stream.flush().await?;
 
-        //This connection is terminated. Client connects again using the character chosen and the ip/port sent
+        //Awaits connection be terminated by client, which will connect again using the chosen character
+        loop {
+            match io::timeout(Duration::from_secs(1), stream.flush()).await {
+                Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => {
+                    log::info!("Client disconnected after receiving character list.");
+                    break;
+                },
+                Err(err) if err.kind() == std::io::ErrorKind::TimedOut => {/* Do nothing */},
+                Ok(_) => {/* Do nothing */},
+                Err(err) => return Err(err.into())
+            }
+        }
+
         Ok((None, protocol))
     } else {
         log::error!("Unrecognized login message. Protocol={:?}, length={}", protocol, message_length);

@@ -32,7 +32,7 @@ pub enum MagicEffect {
 
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, TryFromPrimitive)]
-enum Fluid {
+pub enum Fluid {
     None = 0,
     Blue = 1,
     Red = 2,

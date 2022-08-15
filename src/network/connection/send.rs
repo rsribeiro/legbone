@@ -5,10 +5,7 @@ use async_std::{
 };
 use crate::{
     Protocol,
-    constants::{
-        MagicEffect,
-        ObjectUpdateType
-    },
+    constants::*,
     character::{
         CharacterOutfit,
         Direction,
@@ -22,7 +19,8 @@ use crate::{
     },
     map::{
         MAP,
-        position::Position
+        position::Position,
+        TileObject
     },
     network::header::{
         HeaderSend,
@@ -326,9 +324,29 @@ impl Connection {
 
     async fn prepare_tile(&self, position: Position) -> Result<Vec<u8>> {
         let mut buf = Cursor::new(Vec::<u8>::new());
-        if let Some(map_tile) = MAP.get().unwrap().get_tile(position) {
-            for &tile in map_tile {
-                buf.write_u16::<LE>(tile).await?;
+        if let Some(tile) = MAP.get().unwrap().get_tile_objects(position) {
+            for &tile_object in tile {
+                match tile_object {
+                    TileObject::Other(tile_id) => buf.write_u16::<LE>(tile_id).await?,
+                    TileObject::FluidContainer(tile_id, fluid) => {
+                        buf.write_u16::<LE>(tile_id).await?;
+                        if self.protocol >= Protocol::Tibia300 {
+                            buf.write_u8(fluid as u8).await?;
+                        }
+                    },
+                    TileObject::LightSource(tile_id, light_level) => {
+                        buf.write_u16::<LE>(tile_id).await?;
+                        if self.protocol >= Protocol::Tibia300 {
+                            buf.write_u8(light_level).await?;
+                        }
+                    },
+                    TileObject::Stackable(tile_id, count) => {
+                        buf.write_u16::<LE>(tile_id).await?;
+                        if self.protocol >= Protocol::Tibia300 {
+                            buf.write_u8(count).await?;
+                        }
+                    },
+                }
             }
         }
 

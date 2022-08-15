@@ -171,7 +171,7 @@ impl Connection {
             self.queue_message(self.prepare_magic_effect(MagicEffect::Teleport, position).await?).await;
             self.queue_message(self.prepare_world_light(6).await?).await;
             self.queue_message(self.prepare_status_message("Hello, World!").await?).await;
-            self.queue_message(self.prepare_message_of_the_day(0x0101, "Hello, World!").await?).await;
+            // self.queue_message(self.prepare_message_of_the_day(0x0101, "Hello, World!").await?).await;
         }
 
         Ok(())

@@ -1,54 +1,39 @@
-mod send;
-mod receive;
 mod debug;
+mod receive;
+mod send;
 
-use crossbeam_queue::SegQueue;
-use std::{
-    time::Duration,
-    convert::TryInto
-};
-use async_std::{
-    prelude::*,
-    net::TcpStream,
-    io
-};
 use crate::{
-    io::ReadExt,
-    Protocol,
     character::player::Player,
-    world::message::{
-        PlayerToWorldMessage,
-        WorldToPlayerMessage
-    },
-    persistence
+    io::ReadExt,
+    persistence,
+    world::message::{PlayerToWorldMessage, WorldToPlayerMessage},
+    Protocol,
 };
-use byteorder_async::{
-    LE,
-    AsyncReadByteOrder,
-    AsyncWriteByteOrder
-};
-use anyhow::{
-    Result,
-    anyhow
-};
-use flume::{
-    Sender,
-    Receiver,
-    unbounded
-};
+use anyhow::{anyhow, Result};
+use async_std::{io, net::TcpStream, prelude::*};
+use byteorder_async::{AsyncReadByteOrder, AsyncWriteByteOrder, LE};
+use crossbeam_queue::SegQueue;
+use flume::{unbounded, Receiver, Sender};
+use std::{convert::TryInto, time::Duration};
 
 pub struct Connection {
     stream: TcpStream,
-    player: Player,//TODO remove
+    player: Player, //TODO remove
     player_id: u32,
     protocol: Protocol,
     message_queue: SegQueue<Vec<u8>>,
     sender: Sender<PlayerToWorldMessage>,
-    receiver: Receiver<WorldToPlayerMessage>
+    receiver: Receiver<WorldToPlayerMessage>,
 }
 
 impl Connection {
-    fn new(stream: TcpStream, protocol: Protocol, player: Player, sender: Sender<PlayerToWorldMessage>, receiver: Receiver<WorldToPlayerMessage>) -> Self {
+    fn new(
+        stream: TcpStream,
+        protocol: Protocol,
+        player: Player,
+        sender: Sender<PlayerToWorldMessage>,
+        receiver: Receiver<WorldToPlayerMessage>,
+    ) -> Self {
         let player_id = player.id;
         Self {
             stream,
@@ -57,26 +42,37 @@ impl Connection {
             protocol,
             message_queue: SegQueue::new(),
             sender,
-            receiver
+            receiver,
         }
     }
 
-    pub async fn handle_login(mut stream: TcpStream, sender: Sender<PlayerToWorldMessage>) -> Result<Option<Connection>> {
+    pub async fn handle_login(
+        mut stream: TcpStream,
+        sender: Sender<PlayerToWorldMessage>,
+    ) -> Result<Option<Connection>> {
         let length = stream.read_u16::<LE>().await?;
         log::trace!("handle_login: length={}", length);
 
         let (player, protocol) = match length {
             67 => player_login(&mut stream).await?,
-            221|223|723 => create_new_player(&mut stream).await?,
-            _ => account_login(&mut stream, length).await?
+            221 | 223 | 723 => create_new_player(&mut stream).await?,
+            _ => account_login(&mut stream, length).await?,
         };
 
         if let Some(player) = player {
             let (game_sender, receiver) = unbounded();
 
-            sender.send_async(PlayerToWorldMessage::LoadPlayer(player.id, game_sender)).await.unwrap();
+            sender
+                .send_async(PlayerToWorldMessage::LoadPlayer(player.id, game_sender))
+                .await
+                .unwrap();
 
-            log::info!("Player logged in: protocol={:?}, id={}, name={}, ", protocol, player.id, player.name);
+            log::info!(
+                "Player logged in: protocol={:?}, id={}, name={}, ",
+                protocol,
+                player.id,
+                player.name
+            );
             let mut client = Connection::new(stream, protocol, player, sender, receiver);
             client.queue_login_info().await?;
             client.flush_message_queue().await?;
@@ -88,7 +84,7 @@ impl Connection {
     }
 }
 
-async fn player_login(stream: &mut TcpStream) -> Result<(Option<Player>,Protocol)> {
+async fn player_login(stream: &mut TcpStream) -> Result<(Option<Player>, Protocol)> {
     //TODO validate message using initial bytes
     //103+ = 00, 00, 01, 01, 00
     //650  = N/A
@@ -102,12 +98,17 @@ async fn player_login(stream: &mut TcpStream) -> Result<(Option<Player>,Protocol
     let mut password = String::new();
     stream.read_string(&mut password, 30).await?;
 
-    log::trace!("Journey Onward! Name={}, password={}, protocol={:?}", name, password, protocol);
+    log::trace!(
+        "Journey Onward! Name={}, password={}, protocol={:?}",
+        name,
+        password,
+        protocol
+    );
 
     Ok((persistence::load_player_by_name(&name), protocol))
 }
 
-async fn create_new_player(stream: &mut TcpStream) -> Result<(Option<Player>,Protocol)> {
+async fn create_new_player(stream: &mut TcpStream) -> Result<(Option<Player>, Protocol)> {
     //TODO validate message using initial bytes
     //103+ = 00, 00, 00, 01, 00
     //640+ = N/A
@@ -156,7 +157,10 @@ async fn create_new_player(stream: &mut TcpStream) -> Result<(Option<Player>,Pro
     Ok((Some(player), protocol))
 }
 
-async fn account_login(stream: &mut TcpStream, message_length: u16) -> Result<(Option<Player>,Protocol)> {
+async fn account_login(
+    stream: &mut TcpStream,
+    message_length: u16,
+) -> Result<(Option<Player>, Protocol)> {
     log::trace!("Account login attempt. length={}", message_length);
 
     //TODO validate message using initial bytes
@@ -187,17 +191,25 @@ async fn account_login(stream: &mut TcpStream, message_length: u16) -> Result<(O
                 Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => {
                     log::info!("Client disconnected after receiving character list.");
                     break;
-                },
-                Err(err) if err.kind() == std::io::ErrorKind::TimedOut => {/* Do nothing */},
-                Ok(_) => {/* Do nothing */},
-                Err(err) => return Err(err.into())
+                }
+                Err(err) if err.kind() == std::io::ErrorKind::TimedOut => { /* Do nothing */ }
+                Ok(_) => { /* Do nothing */ }
+                Err(err) => return Err(err.into()),
             }
         }
 
         Ok((None, protocol))
     } else {
-        log::error!("Unrecognized login message. Protocol={:?}, length={}", protocol, message_length);
-        Err(anyhow!("Unrecognized login message. Protocol={:?}, length={}", protocol, message_length))
+        log::error!(
+            "Unrecognized login message. Protocol={:?}, length={}",
+            protocol,
+            message_length
+        );
+        Err(anyhow!(
+            "Unrecognized login message. Protocol={:?}, length={}",
+            protocol,
+            message_length
+        ))
     }
 }
 
@@ -205,7 +217,7 @@ impl Drop for Connection {
     fn drop(&mut self) {
         match self.stream.peer_addr() {
             Ok(peer_address) => log::info!("Connection with {} finished.", peer_address),
-            Err(_) => log::warn!("Finishing connection")
+            Err(_) => log::warn!("Finishing connection"),
         }
     }
 }

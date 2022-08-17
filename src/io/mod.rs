@@ -1,24 +1,14 @@
+use crate::{
+    character::Gender, character::Outfit, map::position::Position, network::header::HeaderSend,
+    Protocol,
+};
+use anyhow::Result;
 use async_std::{
+    io::{Read, Write},
     prelude::*,
-    io::{
-        Read,
-        Write
-    }
 };
 use async_trait::async_trait;
-use anyhow::Result;
-use crate::{
-    character::Gender,
-    Protocol,
-    map::position::Position,
-    character::Outfit,
-    network::header::HeaderSend,
-};
-use byteorder_async::{
-    LE,
-    AsyncReadByteOrder,
-    AsyncWriteByteOrder,
-};
+use byteorder_async::{AsyncReadByteOrder, AsyncWriteByteOrder, LE};
 
 impl<R: Read + Unpin> ReadExt for R {}
 
@@ -30,7 +20,11 @@ pub trait ReadExt: Read + Unpin + Sized {
             0 if protocol < Protocol::Tibia501 => Gender::Female,
             2 if protocol >= Protocol::Tibia501 => Gender::Female,
             raw_gender => {
-                log::error!("Unknown gender byte {} for protocol {:?}, assuming 'male'.", raw_gender, protocol);
+                log::error!(
+                    "Unknown gender byte {} for protocol {:?}, assuming 'male'.",
+                    raw_gender,
+                    protocol
+                );
                 Gender::Male
             }
         };
@@ -43,18 +37,24 @@ pub trait ReadExt: Read + Unpin + Sized {
         let (legs, shoes) = self.read_u4().await?;
         let (head, body) = self.read_u4().await?;
         let unknown_byte = self.read_u8().await?;
-    
-        Ok(Outfit::new_with_unknown_byte(head, body, legs, shoes, unknown_byte))
+
+        Ok(Outfit::new_with_unknown_byte(
+            head,
+            body,
+            legs,
+            shoes,
+            unknown_byte,
+        ))
     }
-    
+
     /// The 4 lower and 4 higher bits in the byte stores different values.
-    async fn read_u4(&mut self) -> Result<(u8,u8)> {
+    async fn read_u4(&mut self) -> Result<(u8, u8)> {
         let byte = self.read_u8().await?;
         let high = byte / 16;
         let low = byte % 16;
         Ok((high, low))
     }
-    
+
     async fn read_position(&mut self, protocol: Protocol) -> Result<Position> {
         let position = if protocol == Protocol::Tibia103 {
             let x = self.read_u8().await?;
@@ -66,23 +66,23 @@ pub trait ReadExt: Read + Unpin + Sized {
             let y = self.read_u16::<LE>().await?;
             let z = self.read_u8().await?;
 
-            Position::new(x,y,z)
+            Position::new(x, y, z)
         };
-    
+
         Ok(position)
     }
-    
+
     /// Reads string until null byte is found. Unsafe because it can enter an infinite loop
     async unsafe fn read_string_until_end(&mut self, buf: &mut String) -> Result<usize> {
         loop {
             match self.read_u8().await? {
                 b'\0' => break,
-                c => buf.push(c as char)
+                c => buf.push(c as char),
             }
         }
         Ok(buf.len())
     }
-    
+
     /// Reads string until null byte or max_size. Consumes max_size bytes from the stream
     async fn read_string(&mut self, buf: &mut String, max_size: u16) -> Result<usize> {
         for n in 1..=max_size {
@@ -90,13 +90,13 @@ pub trait ReadExt: Read + Unpin + Sized {
                 b'\0' => {
                     self.skip(max_size - n).await?;
                     break;
-                },
-                c => buf.push(c as char)
+                }
+                c => buf.push(c as char),
             }
         }
         Ok(buf.len())
     }
-    
+
     /// Skips an ammount of bytes. Is used in some places where the meaning of the received
     /// is currently unknown.
     async fn skip(&mut self, bytes: u16) -> Result<()> {
@@ -118,7 +118,11 @@ pub trait WriteExt: Write + Unpin + Sized {
         Ok(())
     }
 
-    async fn write_outfit_colors_with_unknown_byte(&mut self, outfit: Outfit, unknown_byte: u8) -> Result<()> {
+    async fn write_outfit_colors_with_unknown_byte(
+        &mut self,
+        outfit: Outfit,
+        unknown_byte: u8,
+    ) -> Result<()> {
         self.write_u4(outfit.legs, outfit.shoes).await?;
         self.write_u4(outfit.head, outfit.body).await?;
         self.write_u8(unknown_byte).await?;
@@ -135,9 +139,9 @@ pub trait WriteExt: Write + Unpin + Sized {
         match gender {
             Gender::Male => self.write_u8(1).await?,
             Gender::Female if protocol < Protocol::Tibia501 => self.write_u8(0).await?,
-            Gender::Female => self.write_u8(2).await?
+            Gender::Female => self.write_u8(2).await?,
         }
-        
+
         Ok(())
     }
 
@@ -164,7 +168,7 @@ pub trait WriteExt: Write + Unpin + Sized {
             self.write_u16::<LE>(position.y).await?;
             self.write_u8(position.z).await?;
         }
-        
+
         Ok(())
     }
 
@@ -182,7 +186,8 @@ pub trait WriteExt: Write + Unpin + Sized {
 
     async fn write_string_with_fixed_length(&mut self, string: &str, length: u16) -> Result<()> {
         if string.len() > length as usize {
-            self.write_all(string[0..length as usize].as_bytes()).await?;
+            self.write_all(string[0..length as usize].as_bytes())
+                .await?;
         } else {
             self.write_all(string.as_bytes()).await?;
             self.write_zeroes(length as usize - string.len()).await?;
@@ -205,9 +210,7 @@ pub trait WriteExt: Write + Unpin + Sized {
 #[allow(non_snake_case)]
 mod tests {
     use super::*;
-    use async_std::{
-        io::Cursor
-    };
+    use async_std::io::Cursor;
 
     #[async_std::test]
     async fn test_read_write_gender() -> Result<()> {
@@ -241,7 +244,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_read_write_position() -> Result<()> {
-        let position_before = Position::new(1,2,3);
+        let position_before = Position::new(1, 2, 3);
         let protocol = Protocol::Tibia650;
 
         let mut buf = Cursor::new(Vec::<u8>::new());

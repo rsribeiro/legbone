@@ -1,14 +1,8 @@
-use position::Position;
 use crate::constants::Fluid;
-use std::{
-    collections::BTreeMap,
-    str::FromStr
-};
+use anyhow::{anyhow, Result};
 use once_cell::sync::OnceCell;
-use anyhow::{
-    Result,
-    anyhow
-};
+use position::Position;
+use std::{collections::BTreeMap, str::FromStr};
 
 pub mod position;
 
@@ -24,7 +18,7 @@ pub enum MapType {
     FixedTile,
     Checkerboard,
     RookgaardTemple,
-    File
+    File,
 }
 
 impl FromStr for MapType {
@@ -44,11 +38,17 @@ impl FromStr for MapType {
 pub fn init_map(map_type: MapType, map_arg: Option<String>) -> Result<()> {
     let map = match map_type {
         MapType::FixedTile => {
-            let tile = map_arg.ok_or_else(|| anyhow!("Send numeric tile argument on map_arg."))?.parse()?;
+            let tile = map_arg
+                .ok_or_else(|| anyhow!("Send numeric tile argument on map_arg."))?
+                .parse()?;
             Map::fixed_tile(tile, MAP_WIDTH, MAP_HEIGHT, 0, 0, RESPAWN_LOCATION)
-        },
-        MapType::Checkerboard => Map::checkerboard_pattern(MAP_WIDTH, MAP_HEIGHT, 0, 0, RESPAWN_LOCATION),
-        MapType::RookgaardTemple => Map::rookgaard_temple(MAP_WIDTH, MAP_HEIGHT, 0, 0, RESPAWN_LOCATION),
+        }
+        MapType::Checkerboard => {
+            Map::checkerboard_pattern(MAP_WIDTH, MAP_HEIGHT, 0, 0, RESPAWN_LOCATION)
+        }
+        MapType::RookgaardTemple => {
+            Map::rookgaard_temple(MAP_WIDTH, MAP_HEIGHT, 0, 0, RESPAWN_LOCATION)
+        }
         MapType::File => {
             let _file = map_arg.ok_or_else(|| anyhow!("Send file argument on map_arg."))?;
             return Err(anyhow!("Map from file is not yet supported."));
@@ -61,7 +61,7 @@ pub fn init_map(map_type: MapType, map_arg: Option<String>) -> Result<()> {
 #[derive(Debug)]
 pub struct Map {
     pub(crate) metadata: MapMetadata,
-    tiles: BTreeMap<Position,Tile>
+    tiles: BTreeMap<Position, Tile>,
 }
 
 #[derive(Debug)]
@@ -70,7 +70,7 @@ pub struct MapMetadata {
     height: u16,
     offset_x: u16,
     offset_y: u16,
-    pub(crate) respawn_location: Position
+    pub(crate) respawn_location: Position,
 }
 
 #[derive(Debug)]
@@ -79,20 +79,27 @@ struct Tile(Vec<TileObject>);
 #[derive(Debug, Clone, Copy)]
 pub enum TileObject {
     Other(u16),
-    FluidContainer(u16,Fluid),
-    LightSource(u16,u8),
-    Stackable(u16,u8)
+    FluidContainer(u16, Fluid),
+    LightSource(u16, u8),
+    Stackable(u16, u8),
 }
 
 impl Map {
-    fn fixed_tile(tile_id: u16, width: u16, height: u16, offset_x: u16, offset_y: u16, respawn_location: Position) -> Map {
-        let mut map: BTreeMap<Position,Tile> = BTreeMap::new();
+    fn fixed_tile(
+        tile_id: u16,
+        width: u16,
+        height: u16,
+        offset_x: u16,
+        offset_y: u16,
+        respawn_location: Position,
+    ) -> Map {
+        let mut map: BTreeMap<Position, Tile> = BTreeMap::new();
         for x in 0..width {
             for y in 0..height {
                 let x = x + offset_x;
                 let y = y + offset_y;
 
-                let position = Position::new(x,y,7);
+                let position = Position::new(x, y, 7);
                 if let Some(tile) = map.get_mut(&position) {
                     tile.push(TileObject::Other(tile_id));
                 } else {
@@ -104,24 +111,26 @@ impl Map {
 
         Map {
             metadata: MapMetadata::new(width, height, offset_x, offset_y, respawn_location),
-            tiles: map
+            tiles: map,
         }
     }
 
-    fn checkerboard_pattern(width: u16, height: u16, offset_x: u16, offset_y: u16, respawn_location: Position) -> Map {
-        let mut map: BTreeMap<Position,Tile> = BTreeMap::new();
+    fn checkerboard_pattern(
+        width: u16,
+        height: u16,
+        offset_x: u16,
+        offset_y: u16,
+        respawn_location: Position,
+    ) -> Map {
+        let mut map: BTreeMap<Position, Tile> = BTreeMap::new();
         for x in 0..width {
             for y in 0..height {
                 let x = x + offset_x;
                 let y = y + offset_y;
 
-                let tile_id = if (x + y) % 2  == 0 {
-                    0x010c
-                } else {
-                    0x0113
-                };
+                let tile_id = if (x + y) % 2 == 0 { 0x010c } else { 0x0113 };
 
-                let position = Position::new(x,y,7);
+                let position = Position::new(x, y, 7);
                 if let Some(tile) = map.get_mut(&position) {
                     tile.push(TileObject::Other(tile_id));
                 } else {
@@ -133,12 +142,19 @@ impl Map {
 
         Map {
             metadata: MapMetadata::new(width, height, offset_x, offset_y, respawn_location),
-            tiles: map
+            tiles: map,
         }
     }
 
-    fn rookgaard_temple(width: u16, height: u16, offset_x: u16, offset_y: u16, respawn_location: Position) -> Map {
-        let mut map = Map::checkerboard_pattern(width, height, offset_x, offset_y, respawn_location);
+    fn rookgaard_temple(
+        width: u16,
+        height: u16,
+        offset_x: u16,
+        offset_y: u16,
+        respawn_location: Position,
+    ) -> Map {
+        let mut map =
+            Map::checkerboard_pattern(width, height, offset_x, offset_y, respawn_location);
 
         let center = map.metadata.respawn_location;
         let x_1 = center.x - 8;
@@ -146,96 +162,182 @@ impl Map {
         let y_1 = center.y - 6;
         let y_2 = center.y + 6;
 
-        for x in x_1+2..=x_2-2 {
-            for y in y_1+2..=y_2-2 {
-                map.get_tile(Position::new(x, y, 7)).clear().push(TileObject::Other(0x0a));
+        for x in x_1 + 2..=x_2 - 2 {
+            for y in y_1 + 2..=y_2 - 2 {
+                map.get_tile(Position::new(x, y, 7))
+                    .clear()
+                    .push(TileObject::Other(0x0a));
             }
         }
 
         //water
-        map.get_tile(Position::new(x_1 + 2, y_1 + 10, 7)).push(TileObject::Other(0x5a0e));
-        map.get_tile(Position::new(x_1 + 3, y_1 + 10, 7)).push(TileObject::Other(0x5f0e));
-        map.get_tile(Position::new(x_1 + 13, y_1 + 10, 7)).push(TileObject::Other(0x5c0e));
-        map.get_tile(Position::new(x_1 + 14, y_1 + 10, 7)).push(TileObject::Other(0x000e));
-        map.get_tile(Position::new(x_1 + 13, y_1 + 9, 7)).push(TileObject::Other(0x5e0e));
-        map.get_tile(Position::new(x_1 + 14, y_1 + 9, 7)).push(TileObject::Other(0x5a0e));
+        map.get_tile(Position::new(x_1 + 2, y_1 + 10, 7))
+            .push(TileObject::Other(0x5a0e));
+        map.get_tile(Position::new(x_1 + 3, y_1 + 10, 7))
+            .push(TileObject::Other(0x5f0e));
+        map.get_tile(Position::new(x_1 + 13, y_1 + 10, 7))
+            .push(TileObject::Other(0x5c0e));
+        map.get_tile(Position::new(x_1 + 14, y_1 + 10, 7))
+            .push(TileObject::Other(0x000e));
+        map.get_tile(Position::new(x_1 + 13, y_1 + 9, 7))
+            .push(TileObject::Other(0x5e0e));
+        map.get_tile(Position::new(x_1 + 14, y_1 + 9, 7))
+            .push(TileObject::Other(0x5a0e));
 
         //marble
-        map.get_tile(Position::new(x_1 + 5, y_1 + 9, 7)).push(TileObject::Other(0x010c)).push(TileObject::Other(0x0327));
-        map.get_tile(Position::new(x_1 + 6, y_1 + 9, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 7, y_1 + 9, 7)).push(TileObject::Other(0x010c)).push(TileObject::Other(0x0327));
-        map.get_tile(Position::new(x_1 + 8, y_1 + 9, 7)).push(TileObject::Other(0x0113));
-        map.get_tile(Position::new(x_1 + 9, y_1 + 9, 7)).push(TileObject::Other(0x010c)).push(TileObject::Other(0x0327));
-        map.get_tile(Position::new(x_1 + 10, y_1 + 9, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 11, y_1 + 9, 7)).push(TileObject::Other(0x010c)).push(TileObject::Other(0x0327));
+        map.get_tile(Position::new(x_1 + 5, y_1 + 9, 7))
+            .push(TileObject::Other(0x010c))
+            .push(TileObject::Other(0x0327));
+        map.get_tile(Position::new(x_1 + 6, y_1 + 9, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 7, y_1 + 9, 7))
+            .push(TileObject::Other(0x010c))
+            .push(TileObject::Other(0x0327));
+        map.get_tile(Position::new(x_1 + 8, y_1 + 9, 7))
+            .push(TileObject::Other(0x0113));
+        map.get_tile(Position::new(x_1 + 9, y_1 + 9, 7))
+            .push(TileObject::Other(0x010c))
+            .push(TileObject::Other(0x0327));
+        map.get_tile(Position::new(x_1 + 10, y_1 + 9, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 11, y_1 + 9, 7))
+            .push(TileObject::Other(0x010c))
+            .push(TileObject::Other(0x0327));
 
-        map.get_tile(Position::new(x_1 + 5, y_1 + 8, 7)).push(TileObject::Other(0x010c)).push(TileObject::LightSource(0x0072,6));
-        map.get_tile(Position::new(x_1 + 6, y_1 + 8, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 7, y_1 + 8, 7)).push(TileObject::Other(0x0113));
-        map.get_tile(Position::new(x_1 + 8, y_1 + 8, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 9, y_1 + 8, 7)).push(TileObject::Other(0x0113));
-        map.get_tile(Position::new(x_1 + 10, y_1 + 8, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 11, y_1 + 8, 7)).push(TileObject::Other(0x010c)).push(TileObject::LightSource(0x0072,6));
+        map.get_tile(Position::new(x_1 + 5, y_1 + 8, 7))
+            .push(TileObject::Other(0x010c))
+            .push(TileObject::LightSource(0x0072, 6));
+        map.get_tile(Position::new(x_1 + 6, y_1 + 8, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 7, y_1 + 8, 7))
+            .push(TileObject::Other(0x0113));
+        map.get_tile(Position::new(x_1 + 8, y_1 + 8, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 9, y_1 + 8, 7))
+            .push(TileObject::Other(0x0113));
+        map.get_tile(Position::new(x_1 + 10, y_1 + 8, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 11, y_1 + 8, 7))
+            .push(TileObject::Other(0x010c))
+            .push(TileObject::LightSource(0x0072, 6));
 
-        map.get_tile(Position::new(x_1 + 5, y_1 + 7, 7)).push(TileObject::Other(0x010c)).push(TileObject::Other(0x0327));
-        map.get_tile(Position::new(x_1 + 6, y_1 + 7, 7)).push(TileObject::Other(0x0113));
-        map.get_tile(Position::new(x_1 + 7, y_1 + 7, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 8, y_1 + 7, 7)).push(TileObject::Other(0x0113));
-        map.get_tile(Position::new(x_1 + 9, y_1 + 7, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 10, y_1 + 7, 7)).push(TileObject::Other(0x0113));
-        map.get_tile(Position::new(x_1 + 11, y_1 + 7, 7)).push(TileObject::Other(0x010c)).push(TileObject::Other(0x0327));
+        map.get_tile(Position::new(x_1 + 5, y_1 + 7, 7))
+            .push(TileObject::Other(0x010c))
+            .push(TileObject::Other(0x0327));
+        map.get_tile(Position::new(x_1 + 6, y_1 + 7, 7))
+            .push(TileObject::Other(0x0113));
+        map.get_tile(Position::new(x_1 + 7, y_1 + 7, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 8, y_1 + 7, 7))
+            .push(TileObject::Other(0x0113));
+        map.get_tile(Position::new(x_1 + 9, y_1 + 7, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 10, y_1 + 7, 7))
+            .push(TileObject::Other(0x0113));
+        map.get_tile(Position::new(x_1 + 11, y_1 + 7, 7))
+            .push(TileObject::Other(0x010c))
+            .push(TileObject::Other(0x0327));
 
-        map.get_tile(Position::new(x_1 + 5, y_1 + 6, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 6, y_1 + 6, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 7, y_1 + 6, 7)).push(TileObject::Other(0x0113));
-        map.get_tile(Position::new(x_1 + 8, y_1 + 6, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 9, y_1 + 6, 7)).push(TileObject::Other(0x0113));
-        map.get_tile(Position::new(x_1 + 10, y_1 + 6, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 11, y_1 + 6, 7)).push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 5, y_1 + 6, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 6, y_1 + 6, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 7, y_1 + 6, 7))
+            .push(TileObject::Other(0x0113));
+        map.get_tile(Position::new(x_1 + 8, y_1 + 6, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 9, y_1 + 6, 7))
+            .push(TileObject::Other(0x0113));
+        map.get_tile(Position::new(x_1 + 10, y_1 + 6, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 11, y_1 + 6, 7))
+            .push(TileObject::Other(0x010c));
 
-        map.get_tile(Position::new(x_1 + 5, y_1 + 5, 7)).push(TileObject::Other(0x010c)).push(TileObject::Other(0x0327));
-        map.get_tile(Position::new(x_1 + 6, y_1 + 5, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 7, y_1 + 5, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 8, y_1 + 5, 7)).push(TileObject::Other(0x0113));
-        map.get_tile(Position::new(x_1 + 9, y_1 + 5, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 10, y_1 + 5, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 11, y_1 + 5, 7)).push(TileObject::Other(0x010c)).push(TileObject::Other(0x0327));
+        map.get_tile(Position::new(x_1 + 5, y_1 + 5, 7))
+            .push(TileObject::Other(0x010c))
+            .push(TileObject::Other(0x0327));
+        map.get_tile(Position::new(x_1 + 6, y_1 + 5, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 7, y_1 + 5, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 8, y_1 + 5, 7))
+            .push(TileObject::Other(0x0113));
+        map.get_tile(Position::new(x_1 + 9, y_1 + 5, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 10, y_1 + 5, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 11, y_1 + 5, 7))
+            .push(TileObject::Other(0x010c))
+            .push(TileObject::Other(0x0327));
 
-        map.get_tile(Position::new(x_1 + 5, y_1 + 4, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 6, y_1 + 4, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 7, y_1 + 4, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 8, y_1 + 4, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 9, y_1 + 4, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 10, y_1 + 4, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 11, y_1 + 4, 7)).push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 5, y_1 + 4, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 6, y_1 + 4, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 7, y_1 + 4, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 8, y_1 + 4, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 9, y_1 + 4, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 10, y_1 + 4, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 11, y_1 + 4, 7))
+            .push(TileObject::Other(0x010c));
 
-        map.get_tile(Position::new(x_1 + 5, y_1 + 3, 7)).push(TileObject::Other(0x010c)).push(TileObject::Other(0x0327));
-        map.get_tile(Position::new(x_1 + 6, y_1 + 3, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 7, y_1 + 3, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 8, y_1 + 3, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 9, y_1 + 3, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 10, y_1 + 3, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 11, y_1 + 3, 7)).push(TileObject::Other(0x010c)).push(TileObject::Other(0x0327));
+        map.get_tile(Position::new(x_1 + 5, y_1 + 3, 7))
+            .push(TileObject::Other(0x010c))
+            .push(TileObject::Other(0x0327));
+        map.get_tile(Position::new(x_1 + 6, y_1 + 3, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 7, y_1 + 3, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 8, y_1 + 3, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 9, y_1 + 3, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 10, y_1 + 3, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 11, y_1 + 3, 7))
+            .push(TileObject::Other(0x010c))
+            .push(TileObject::Other(0x0327));
 
-        map.get_tile(Position::new(x_1 + 5, y_1 + 2, 7)).push(TileObject::Other(0x010c)).push(TileObject::LightSource(0x0072,6));
-        map.get_tile(Position::new(x_1 + 6, y_1 + 2, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 7, y_1 + 2, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 8, y_1 + 2, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 9, y_1 + 2, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 10, y_1 + 2, 7)).push(TileObject::Other(0x010c));
-        map.get_tile(Position::new(x_1 + 11, y_1 + 2, 7)).push(TileObject::Other(0x010c)).push(TileObject::LightSource(0x0072,6));
+        map.get_tile(Position::new(x_1 + 5, y_1 + 2, 7))
+            .push(TileObject::Other(0x010c))
+            .push(TileObject::LightSource(0x0072, 6));
+        map.get_tile(Position::new(x_1 + 6, y_1 + 2, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 7, y_1 + 2, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 8, y_1 + 2, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 9, y_1 + 2, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 10, y_1 + 2, 7))
+            .push(TileObject::Other(0x010c));
+        map.get_tile(Position::new(x_1 + 11, y_1 + 2, 7))
+            .push(TileObject::Other(0x010c))
+            .push(TileObject::LightSource(0x0072, 6));
 
         //stone on top
-        map.get_tile(Position::new(x_1 + 2, y_1 + 2, 7)).push(TileObject::Other(0xb00a));
-        map.get_tile(Position::new(x_1 + 2, y_1 + 3, 7)).push(TileObject::Other(0xac0a));
-        map.get_tile(Position::new(x_1 + 3, y_1 + 2, 7)).push(TileObject::Other(0xac0a));
+        map.get_tile(Position::new(x_1 + 2, y_1 + 2, 7))
+            .push(TileObject::Other(0xb00a));
+        map.get_tile(Position::new(x_1 + 2, y_1 + 3, 7))
+            .push(TileObject::Other(0xac0a));
+        map.get_tile(Position::new(x_1 + 3, y_1 + 2, 7))
+            .push(TileObject::Other(0xac0a));
 
         //trees
-        map.get_tile(Position::new(x_1 + 13, y_1 + 2, 7)).push(TileObject::Other(0x01a3));
-        map.get_tile(Position::new(x_1 + 13, y_1 + 4, 7)).push(TileObject::Other(0x00a3));
-        map.get_tile(Position::new(x_1 + 14, y_1 + 4, 7)).push(TileObject::Other(0x01a3));
-        map.get_tile(Position::new(x_1 + 15, y_1 + 4, 7)).push(TileObject::Other(0x00a3));
-        map.get_tile(Position::new(x_1 + 15, y_1 + 3, 7)).push(TileObject::Other(0x00a0));
+        map.get_tile(Position::new(x_1 + 13, y_1 + 2, 7))
+            .push(TileObject::Other(0x01a3));
+        map.get_tile(Position::new(x_1 + 13, y_1 + 4, 7))
+            .push(TileObject::Other(0x00a3));
+        map.get_tile(Position::new(x_1 + 14, y_1 + 4, 7))
+            .push(TileObject::Other(0x01a3));
+        map.get_tile(Position::new(x_1 + 15, y_1 + 4, 7))
+            .push(TileObject::Other(0x00a3));
+        map.get_tile(Position::new(x_1 + 15, y_1 + 3, 7))
+            .push(TileObject::Other(0x00a0));
 
         map
     }
@@ -249,8 +351,9 @@ impl Map {
         if position.x >= self.metadata.offset_x
             && position.x < self.metadata.offset_x + self.metadata.width
             && position.y >= self.metadata.offset_y
-            && position.y < self.metadata.offset_y + self.metadata.height {
-            self.tiles.get(&position).map(|t|t.0.as_slice())
+            && position.y < self.metadata.offset_y + self.metadata.height
+        {
+            self.tiles.get(&position).map(|t| t.0.as_slice())
         } else if position.z == 7 {
             Some(&[TileObject::Other(0x000e)]) //water
         } else {
@@ -260,8 +363,20 @@ impl Map {
 }
 
 impl MapMetadata {
-    const fn new(width: u16, height: u16, offset_x: u16, offset_y: u16, respawn_location: Position) -> MapMetadata {
-        Self { width, height, offset_x, offset_y, respawn_location }
+    const fn new(
+        width: u16,
+        height: u16,
+        offset_x: u16,
+        offset_y: u16,
+        respawn_location: Position,
+    ) -> MapMetadata {
+        Self {
+            width,
+            height,
+            offset_x,
+            offset_y,
+            respawn_location,
+        }
     }
 }
 

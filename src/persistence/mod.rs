@@ -1,19 +1,11 @@
-use std::sync::atomic::{
-    AtomicU32,
-    Ordering
-};
 use crate::{
     character::{
-        Outfit,
-        Gender,
-        player::{
-            Skills,
-            Stats,
-            Player,
-        }
+        player::{Player, Skills, Stats},
+        Gender, Outfit,
     },
-    map::MAP
+    map::MAP,
 };
+use std::sync::atomic::{AtomicU32, Ordering};
 
 fn get_player_id(_name: &str) -> Option<u32> {
     static NEXT_ID: AtomicU32 = AtomicU32::new(256);
@@ -21,7 +13,7 @@ fn get_player_id(_name: &str) -> Option<u32> {
 }
 
 pub fn load_player_by_name(name: &str) -> Option<Player> {
-    get_player_id(name).map(|id|{
+    get_player_id(name).map(|id| {
         Player {
             id,
             name: name.to_owned(),
@@ -30,14 +22,14 @@ pub fn load_player_by_name(name: &str) -> Option<Player> {
                 sword: 10,
                 club: 10,
                 axe: 10,
-                distance: 10,//on v4 this is 'throwing'
+                distance: 10, //on v4 this is 'throwing'
                 shield: 10,
                 fist: 10,
                 fishing: 10,
-    
+
                 //only on v4
                 gauche: 10,
-                missile: 10
+                missile: 10,
             },
             stats: Stats {
                 health_points: 150,
@@ -49,7 +41,7 @@ pub fn load_player_by_name(name: &str) -> Option<Player> {
                 experience_level: 1,
                 mana_points: 55,
                 magic_level: 0,
-                ammunition: 1
+                ammunition: 1,
             },
             outfit: Outfit::new(0, 0, 0, 0),
             gender: Gender::Male,

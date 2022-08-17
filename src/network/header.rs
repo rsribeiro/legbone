@@ -1,5 +1,5 @@
-use num_enum::TryFromPrimitive;
 use crate::character::Direction;
+use num_enum::TryFromPrimitive;
 
 #[repr(u16)]
 #[derive(Debug, TryFromPrimitive)]
@@ -103,5 +103,5 @@ pub enum HeaderReceive {
     ExitBattle = 0x0033,
     SetTarget = 0x0034,
     Echo = 0x00C8,
-    Logout = 0x00ff
+    Logout = 0x00ff,
 }

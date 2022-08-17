@@ -1,27 +1,16 @@
-use std::{
-    sync::{
-        Arc,
-        RwLock
-    }
-};
+use anyhow::Result;
 use async_std::{
+    net::{SocketAddr, TcpListener},
     prelude::*,
-    net::{
-        TcpListener,
-        SocketAddr
-    },
-    task
+    task,
 };
+use clap::Parser;
 use legbone::{
     network::connection::Connection,
-    world::{
-        World,
-        WorldOptions
-    },
+    world::{World, WorldOptions},
     Opts,
 };
-use anyhow::Result;
-use clap::Parser;
+use std::sync::{Arc, RwLock};
 
 fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
@@ -33,11 +22,11 @@ fn main() -> Result<()> {
     };
 
     env_logger::Builder::new()
-            .filter(None, log::LevelFilter::Info)
-            .filter(Some("legbone"), log_level)
-            .filter(Some("async_std"), log::LevelFilter::Error)
-            .filter(Some("polling"), log::LevelFilter::Error)
-            .init();
+        .filter(None, log::LevelFilter::Info)
+        .filter(Some("legbone"), log_level)
+        .filter(Some("async_std"), log::LevelFilter::Error)
+        .filter(Some("polling"), log::LevelFilter::Error)
+        .init();
 
     log::info!("log level = {:?}", log_level);
 
@@ -49,13 +38,17 @@ fn main() -> Result<()> {
 
     let world = World::new();
     let world_options = WorldOptions {
-        day_night_cycle_enabled: opts.day_night_cycle_enabled
+        day_night_cycle_enabled: opts.day_night_cycle_enabled,
     };
 
     task::block_on(game_loop(world, socket_addr, world_options))
 }
 
-async fn game_loop(world: Arc<RwLock<World>>, socket_addr: SocketAddr, world_options: WorldOptions) -> Result<()> {
+async fn game_loop(
+    world: Arc<RwLock<World>>,
+    socket_addr: SocketAddr,
+    world_options: WorldOptions,
+) -> Result<()> {
     let listener = TcpListener::bind(socket_addr).await?;
     log::info!("Server listening on address {}", socket_addr);
 
@@ -81,8 +74,8 @@ async fn game_loop(world: Arc<RwLock<World>>, socket_addr: SocketAddr, world_opt
                             }
                         }
                     }
-                },
-                Err(err) => log::error!("Error on client login: {}", err)
+                }
+                Err(err) => log::error!("Error on client login: {}", err),
             }
         });
     }

@@ -1,43 +1,22 @@
-use std::{
-    time::Duration,
-    convert::TryInto
-};
-use async_std::{
-    prelude::*,
-    io::{
-        self,
-        Cursor
-    },
-};
 use super::Connection;
 use crate::{
-    network::header::HeaderReceive,
+    character::{CharacterOutfit, Direction, FightMode, FightStance},
     chat::ChatType,
-    character::{
-        Direction,
-        FightMode,
-        FightStance,
-        CharacterOutfit
-    },
-    map::position::PositionQualifier,
-    Protocol,
-    constants::{
-        MagicEffect,
-        ObjectUpdateType
-    },
+    constants::{MagicEffect, ObjectUpdateType},
     io::ReadExt,
-    world::message::{
-        PlayerToWorldMessage,
-        WorldToPlayerMessage
-    },
-    Opts,
-};
-use byteorder_async::{
-    LE,
-    AsyncReadByteOrder
+    map::position::PositionQualifier,
+    network::header::HeaderReceive,
+    world::message::{PlayerToWorldMessage, WorldToPlayerMessage},
+    Opts, Protocol,
 };
 use anyhow::Result;
+use async_std::{
+    io::{self, Cursor},
+    prelude::*,
+};
+use byteorder_async::{AsyncReadByteOrder, LE};
 use clap::Parser;
+use std::{convert::TryInto, time::Duration};
 
 impl Connection {
     pub async fn handle_connection(&mut self) -> Result<()> {
@@ -47,7 +26,11 @@ impl Connection {
                 Ok(length) => {
                     let mut message = vec![0_u8; length as usize];
                     self.stream.read_exact(&mut message).await?;
-                    log::trace!("Message received: length={}, bytes={:02x?}", length, message);
+                    log::trace!(
+                        "Message received: length={}, bytes={:02x?}",
+                        length,
+                        message
+                    );
 
                     let mut message = Cursor::new(message);
 
@@ -55,48 +38,83 @@ impl Connection {
                         Ok(header) => {
                             log::trace!("Message received from client: {:?}", header);
                             match header {
-                                HeaderReceive::PlayerInfo => self.receive_player_info(&mut message).await?,
-                                HeaderReceive::UserList => self.receive_user_list(&mut message).await?,
+                                HeaderReceive::PlayerInfo => {
+                                    self.receive_player_info(&mut message).await?
+                                }
+                                HeaderReceive::UserList => {
+                                    self.receive_user_list(&mut message).await?
+                                }
                                 HeaderReceive::Walk => self.receive_walk(&mut message).await?,
-                                HeaderReceive::AutoWalk => self.receive_auto_walk(&mut message).await?,
+                                HeaderReceive::AutoWalk => {
+                                    self.receive_auto_walk(&mut message).await?
+                                }
                                 HeaderReceive::LookAt => self.receive_look_at(&mut message).await?,
                                 HeaderReceive::Chat => self.receive_chat(&mut message).await?,
-                                HeaderReceive::ChangeDirection => self.receive_change_direction(&mut message).await?,
-                                HeaderReceive::Comment => self.receive_comment(&mut message).await?,
+                                HeaderReceive::ChangeDirection => {
+                                    self.receive_change_direction(&mut message).await?
+                                }
+                                HeaderReceive::Comment => {
+                                    self.receive_comment(&mut message).await?
+                                }
                                 HeaderReceive::Push => self.receive_push(&mut message).await?,
-                                HeaderReceive::UseItem => self.receive_use_item(&mut message).await?,
-                                HeaderReceive::CloseContainer => self.receive_close_container(&mut message).await?,
-                                HeaderReceive::RequestChangeData => self.receive_change_data(&mut message).await?,
-                                HeaderReceive::SetData => self.receive_set_data(&mut message).await?,
-                                HeaderReceive::SetText => self.receive_set_text(&mut message).await?,
-                                HeaderReceive::HouseText => self.receive_house_text(&mut message).await?,
-                                HeaderReceive::ChangeMode => self.receive_change_mode(&mut message).await?,
-                                HeaderReceive::ExitBattle => self.receive_exit_battle(&mut message).await?,
-                                HeaderReceive::SetTarget => self.receive_set_target(&mut message).await?,
+                                HeaderReceive::UseItem => {
+                                    self.receive_use_item(&mut message).await?
+                                }
+                                HeaderReceive::CloseContainer => {
+                                    self.receive_close_container(&mut message).await?
+                                }
+                                HeaderReceive::RequestChangeData => {
+                                    self.receive_change_data(&mut message).await?
+                                }
+                                HeaderReceive::SetData => {
+                                    self.receive_set_data(&mut message).await?
+                                }
+                                HeaderReceive::SetText => {
+                                    self.receive_set_text(&mut message).await?
+                                }
+                                HeaderReceive::HouseText => {
+                                    self.receive_house_text(&mut message).await?
+                                }
+                                HeaderReceive::ChangeMode => {
+                                    self.receive_change_mode(&mut message).await?
+                                }
+                                HeaderReceive::ExitBattle => {
+                                    self.receive_exit_battle(&mut message).await?
+                                }
+                                HeaderReceive::SetTarget => {
+                                    self.receive_set_target(&mut message).await?
+                                }
                                 HeaderReceive::Echo => {}
                                 HeaderReceive::Logout => {
-                                    self.sender.send_async(PlayerToWorldMessage::UnloadPlayer(self.player_id)).await?;
-                                    break
+                                    self.sender
+                                        .send_async(PlayerToWorldMessage::UnloadPlayer(
+                                            self.player_id,
+                                        ))
+                                        .await?;
+                                    break;
                                 }
                             }
-                        },
+                        }
                         Err(err) => {
                             log::error!("Error reading header: {:?}", err);
                         }
                     }
-                },
+                }
                 Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => {
                     log::info!("Client disconnected.");
                     break;
-                },
-                Err(err) if err.kind() == std::io::ErrorKind::TimedOut => { /* do nothing */ },
-                Err(err) => return Err(err.into())
+                }
+                Err(err) if err.kind() == std::io::ErrorKind::TimedOut => { /* do nothing */ }
+                Err(err) => return Err(err.into()),
             };
 
             if self.protocol >= Protocol::Tibia300 {
                 if let Ok(msg) = self.receiver.try_recv() {
                     match msg {
-                        WorldToPlayerMessage::WorldLight(light_level) => self.queue_message(self.prepare_world_light(light_level).await?).await
+                        WorldToPlayerMessage::WorldLight(light_level) => {
+                            self.queue_message(self.prepare_world_light(light_level).await?)
+                                .await
+                        }
                     }
                 }
             }
@@ -120,7 +138,11 @@ impl Connection {
         let fight_mode: FightMode = message.read_u8().await?.try_into()?;
         let fight_stance: FightStance = message.read_u8().await?.try_into()?;
 
-        log::trace!("Change mode: mode={:?}, stance={:?}", fight_mode, fight_stance);
+        log::trace!(
+            "Change mode: mode={:?}, stance={:?}",
+            fight_mode,
+            fight_stance
+        );
 
         Ok(())
     }
@@ -133,7 +155,8 @@ impl Connection {
     async fn receive_player_info(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
         let mut player_name = String::new();
         unsafe { message.read_string_until_end(&mut player_name).await? };
-        self.queue_message(self.prepare_user_info(&player_name).await?).await;
+        self.queue_message(self.prepare_user_info(&player_name).await?)
+            .await;
 
         Ok(())
     }
@@ -144,28 +167,35 @@ impl Connection {
     }
 
     async fn receive_push(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
-        let (position_from, object_id, stack_pos, position_to, count) = if self.protocol == Protocol::Tibia103 {
-            let position_from = message.read_position(self.protocol).await?;
-            let object_id = message.read_u16::<LE>().await?;
-            let stack_pos = message.read_u8().await?;
-            let position_to = message.read_position(self.protocol).await?;
+        let (position_from, object_id, stack_pos, position_to, count) =
+            if self.protocol == Protocol::Tibia103 {
+                let position_from = message.read_position(self.protocol).await?;
+                let object_id = message.read_u16::<LE>().await?;
+                let stack_pos = message.read_u8().await?;
+                let position_to = message.read_position(self.protocol).await?;
 
-            (position_from, object_id, stack_pos, position_to, None)
-        } else {
-            let position_from = message.read_position(self.protocol).await?;
-            let object_id = message.read_u16::<LE>().await?;
-            let stack_pos = message.read_u8().await?;
-            let position_to = message.read_position(self.protocol).await?;
-            let count = message.read_u8().await?;
+                (position_from, object_id, stack_pos, position_to, None)
+            } else {
+                let position_from = message.read_position(self.protocol).await?;
+                let object_id = message.read_u16::<LE>().await?;
+                let stack_pos = message.read_u8().await?;
+                let position_to = message.read_position(self.protocol).await?;
+                let count = message.read_u8().await?;
 
-            (position_from, object_id, stack_pos, position_to, Some(count))
-        };
+                (
+                    position_from,
+                    object_id,
+                    stack_pos,
+                    position_to,
+                    Some(count),
+                )
+            };
 
         let msg_from = match position_from.get_qualifier(self.protocol)? {
             PositionQualifier::None => format!("{}", position_from),
             PositionQualifier::Container(container_index, item_index) => {
                 format!("(container={}, index={})", item_index, container_index)
-            },
+            }
             PositionQualifier::Inventory(inventory_slot) => {
                 format!("{:?}", inventory_slot)
             }
@@ -175,13 +205,20 @@ impl Connection {
             PositionQualifier::None => format!("{}", position_to),
             PositionQualifier::Container(container_index, item_index) => {
                 format!("(container={}, index={})", item_index, container_index)
-            },
+            }
             PositionQualifier::Inventory(inventory_slot) => {
                 format!("{:?}", inventory_slot)
             }
         };
 
-        log::trace!("PUSH object=0x{:04x?}, from={}->to={}, stack_pos={:?}, count={:?}", object_id, msg_from, msg_to, stack_pos, count);
+        log::trace!(
+            "PUSH object=0x{:04x?}, from={}->to={}, stack_pos={:?}, count={:?}",
+            object_id,
+            msg_from,
+            msg_to,
+            stack_pos,
+            count
+        );
 
         Ok(())
     }
@@ -208,7 +245,14 @@ impl Connection {
 
                 log::trace!("Change Data: password={}, outfit={:?}, real name={}, location={}, e-mail={}, comment={}", password, outfit, real_name, location, email, comment);
             } else {
-                log::trace!("Change Data: password={}, outfit={:?}, real name={}, location={}, e-mail={}", password, outfit, real_name, location, email);
+                log::trace!(
+                    "Change Data: password={}, outfit={:?}, real name={}, location={}, e-mail={}",
+                    password,
+                    outfit,
+                    real_name,
+                    location,
+                    email
+                );
             }
 
             outfit
@@ -220,7 +264,11 @@ impl Connection {
             outfit
         };
 
-        self.queue_message(self.prepare_update_outfit(self.player.id, CharacterOutfit::Human, outfit).await?).await;
+        self.queue_message(
+            self.prepare_update_outfit(self.player.id, CharacterOutfit::Human, outfit)
+                .await?,
+        )
+        .await;
         self.player.outfit = outfit;
 
         Ok(())
@@ -245,7 +293,14 @@ impl Connection {
         let stack_pos = message.read_u8().await?;
         let unknown = message.read_u8().await?;
 
-        log::trace!("item_type={}, pos={}, item_id=0x{:04x?}, stack_pos={}, unknown={}", item_type, pos, item_id, stack_pos, unknown);
+        log::trace!(
+            "item_type={}, pos={}, item_id=0x{:04x?}, stack_pos={}, unknown={}",
+            item_type,
+            pos,
+            item_id,
+            stack_pos,
+            unknown
+        );
 
         let message = self.prepare_open_container().await?;
         self.queue_message(message).await;
@@ -256,7 +311,8 @@ impl Connection {
     async fn receive_close_container(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
         let local_id = message.read_u8().await?;
 
-        self.queue_message(self.prepare_close_container(local_id).await?).await;
+        self.queue_message(self.prepare_close_container(local_id).await?)
+            .await;
 
         Ok(())
     }
@@ -267,15 +323,27 @@ impl Connection {
         let msg = match position.get_qualifier(self.protocol)? {
             PositionQualifier::None => format!("Looking at position {}", position),
             PositionQualifier::Container(container_index, item_index) => {
-                format!("Looking at index {} inside container {}.", item_index, container_index)
-            },
+                format!(
+                    "Looking at index {} inside container {}.",
+                    item_index, container_index
+                )
+            }
             PositionQualifier::Inventory(inventory_slot) => {
                 format!("Looking at {:?}", inventory_slot)
             }
         };
 
         log::trace!("{}", msg);
-        self.queue_message(self.prepare_chat(ChatType::GreenScreenOnly, &msg, None, Some(self.player.position)).await?).await;
+        self.queue_message(
+            self.prepare_chat(
+                ChatType::GreenScreenOnly,
+                &msg,
+                None,
+                Some(self.player.position),
+            )
+            .await?,
+        )
+        .await;
 
         Ok(())
     }
@@ -285,8 +353,13 @@ impl Connection {
         log::trace!("Change direction to {:?}", direction);
 
         //todo use real stack pos
-        let mut msg = self.prepare_update_object(self.player.position, ObjectUpdateType::Update, 1).await?;
-        msg.extend(self.prepare_change_direction(self.player.id, direction).await?);
+        let mut msg = self
+            .prepare_update_object(self.player.position, ObjectUpdateType::Update, 1)
+            .await?;
+        msg.extend(
+            self.prepare_change_direction(self.player.id, direction)
+                .await?,
+        );
         self.queue_message(msg).await;
 
         Ok(())
@@ -303,7 +376,9 @@ impl Connection {
         let direction: Direction = message.read_u8().await?.try_into()?;
         log::trace!("Walk 1 tile {:?}", direction);
 
-        self.sender.send_async(PlayerToWorldMessage::Walk(self.player.id)).await?;
+        self.sender
+            .send_async(PlayerToWorldMessage::Walk(self.player.id))
+            .await?;
 
         let old_position = self.player.position;
         let new_position = self.player.position + direction;
@@ -319,17 +394,28 @@ impl Connection {
             // self.queue_message(msg).await;
         } else {
             // Remove character from old tile
-            let msg = self.prepare_update_object(old_position, ObjectUpdateType::Remove, 1).await?;
+            let msg = self
+                .prepare_update_object(old_position, ObjectUpdateType::Remove, 1)
+                .await?;
             self.queue_message(msg).await;
 
             // Add character to new tile
-            let mut msg = self.prepare_update_object(new_position, ObjectUpdateType::Add, 1).await?;
-            msg.extend(self.prepare_change_direction(self.player.id, direction).await?);
+            let mut msg = self
+                .prepare_update_object(new_position, ObjectUpdateType::Add, 1)
+                .await?;
+            msg.extend(
+                self.prepare_change_direction(self.player.id, direction)
+                    .await?,
+            );
             self.queue_message(msg).await;
         }
 
         //Move character and update map
-        self.queue_message(self.prepare_move_character(direction, old_position, new_position).await?).await;
+        self.queue_message(
+            self.prepare_move_character(direction, old_position, new_position)
+                .await?,
+        )
+        .await;
 
         Ok(())
     }
@@ -349,7 +435,16 @@ impl Connection {
         } else if msg.starts_with('#') {
             self.receive_qualified_chat(&msg).await?;
         } else {
-            self.queue_message(self.prepare_chat(ChatType::Normal, &msg, Some(&self.player), Some(self.player.position)).await?).await;
+            self.queue_message(
+                self.prepare_chat(
+                    ChatType::Normal,
+                    &msg,
+                    Some(&self.player),
+                    Some(self.player.position),
+                )
+                .await?,
+            )
+            .await;
         }
 
         Ok(())
@@ -357,7 +452,11 @@ impl Connection {
 
     async fn receive_debug_command(&mut self, msg: &str) -> Result<()> {
         if let Err(err) = self.send_debug_command(msg).await {
-            self.queue_message(self.prepare_magic_effect(MagicEffect::Puff, self.player.position).await?).await;
+            self.queue_message(
+                self.prepare_magic_effect(MagicEffect::Puff, self.player.position)
+                    .await?,
+            )
+            .await;
             log::trace!("Error on debug command: {:?}", err);
         }
 
@@ -367,10 +466,23 @@ impl Connection {
     async fn receive_qualified_chat(&mut self, msg: &str) -> Result<()> {
         match TryInto::<ChatType>::try_into(msg.chars().nth(1)) {
             Ok(chat_type) => {
-                self.queue_message(self.prepare_chat(chat_type, &msg[3..], Some(&self.player), Some(self.player.position)).await?).await;
-            },
+                self.queue_message(
+                    self.prepare_chat(
+                        chat_type,
+                        &msg[3..],
+                        Some(&self.player),
+                        Some(self.player.position),
+                    )
+                    .await?,
+                )
+                .await;
+            }
             Err(_err) => {
-                self.queue_message(self.prepare_magic_effect(MagicEffect::Puff, self.player.position).await?).await;
+                self.queue_message(
+                    self.prepare_magic_effect(MagicEffect::Puff, self.player.position)
+                        .await?,
+                )
+                .await;
             }
         }
         Ok(())

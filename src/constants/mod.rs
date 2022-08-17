@@ -10,7 +10,7 @@ pub enum MagicEffect {
     BlockHit = 3,
 
     //Since v4.0
-    Explosion1= 4,
+    Explosion1 = 4,
     Explosion2 = 5,
     Explosiom3 = 6,
     YellowRing = 7,
@@ -27,7 +27,7 @@ pub enum MagicEffect {
     SplashPoison = 16,
 
     //Since v6.2
-    DarkDamage = 17
+    DarkDamage = 17,
 }
 
 #[repr(u8)]
@@ -40,7 +40,7 @@ pub enum Fluid {
     Green = 4,
     Yellow = 5,
     White = 6,
-    Purple = 7
+    Purple = 7,
 }
 
 #[repr(u8)]
@@ -48,7 +48,7 @@ pub enum Fluid {
 pub enum ObjectUpdateType {
     Remove = 0,
     Add = 1,
-    Update = 2
+    Update = 2,
 }
 
 impl ObjectUpdateType {

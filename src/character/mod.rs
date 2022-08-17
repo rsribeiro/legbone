@@ -5,7 +5,7 @@ pub mod player;
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Gender {
     Female,
-    Male
+    Male,
 }
 
 #[repr(u8)]
@@ -13,7 +13,7 @@ pub enum Gender {
 pub enum FightMode {
     Offensive = 1,
     Normal = 2,
-    Defensive = 3
+    Defensive = 3,
 }
 
 #[repr(u8)]
@@ -23,7 +23,7 @@ pub enum FightStance {
     Chase = 1,
 
     //Since v5
-    KeepDistance = 2
+    KeepDistance = 2,
 }
 
 #[repr(u8)]
@@ -67,16 +67,34 @@ pub struct Outfit {
     //Changing this value had no identifiable effect, but it has to be sent to and received from client
     //Race??? (1=human)
     //Gender???
-    pub(crate) unknown_byte: u8
+    pub(crate) unknown_byte: u8,
 }
 
 impl Outfit {
     pub const fn new(head: u8, body: u8, legs: u8, shoes: u8) -> Self {
-        Self { head, body, legs, shoes, unknown_byte: 0 }
+        Self {
+            head,
+            body,
+            legs,
+            shoes,
+            unknown_byte: 0,
+        }
     }
 
-    pub const fn new_with_unknown_byte(head: u8, body: u8, legs: u8, shoes: u8, unknown_byte: u8) -> Self {
-        Self { head, body, legs, shoes, unknown_byte }
+    pub const fn new_with_unknown_byte(
+        head: u8,
+        body: u8,
+        legs: u8,
+        shoes: u8,
+        unknown_byte: u8,
+    ) -> Self {
+        Self {
+            head,
+            body,
+            legs,
+            shoes,
+            unknown_byte,
+        }
     }
 }
 
@@ -91,12 +109,12 @@ pub enum CharacterOutfit {
     Cyclops = 22,
     Snake = 28,
     Spider = 30,
-    
+
     //Since v3.1
     Minotaur = 25,
     Rotworm = 26,
     Wolf = 27,
-    
+
     //Since v4.0
     Bear = 16,
     Beholder = 17,
@@ -163,5 +181,5 @@ pub enum CharacterOutfit {
     MinotaurMage2 = 74,
 
     //Since v6.5
-    GameMaster = 75
+    GameMaster = 75,
 }

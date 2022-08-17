@@ -1,24 +1,10 @@
-use async_std::{
-    prelude::*,
-    task,
-    stream
-};
-use flume::{
-    unbounded,
-    Sender,
-    Receiver
-};
+use async_std::{prelude::*, stream, task};
+use flume::{unbounded, Receiver, Sender};
+use message::{PlayerToWorldMessage, WorldToPlayerMessage};
 use std::{
+    collections::BTreeMap,
+    sync::{Arc, RwLock},
     time::Duration,
-    sync::{
-        Arc,
-        RwLock
-    },
-    collections::BTreeMap
-};
-use message::{
-    PlayerToWorldMessage,
-    WorldToPlayerMessage
 };
 
 pub mod message;
@@ -30,17 +16,14 @@ pub struct World {
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct WorldOptions {
-    pub day_night_cycle_enabled: bool
+    pub day_night_cycle_enabled: bool,
 }
 
 impl World {
     pub fn new() -> Arc<RwLock<World>> {
         let (sender, receiver) = unbounded();
 
-        Arc::new(RwLock::new(World {
-            sender,
-            receiver
-        }))
+        Arc::new(RwLock::new(World { sender, receiver }))
     }
 
     pub fn sender(&self) -> Sender<PlayerToWorldMessage> {
@@ -53,36 +36,39 @@ impl World {
         task::spawn(Self::world_loop(world.clone(), world_options, senders));
     }
 
-    async fn message_loop(world: Arc<RwLock<World>>, senders: Arc<RwLock<BTreeMap<u32, Sender<WorldToPlayerMessage>>>>) {
+    async fn message_loop(
+        world: Arc<RwLock<World>>,
+        senders: Arc<RwLock<BTreeMap<u32, Sender<WorldToPlayerMessage>>>>,
+    ) {
         loop {
             match world.read().unwrap().receiver.recv() {
-                Ok(message) => {
-                    match message {
-                        PlayerToWorldMessage::LoadPlayer(player_id, sender) => {
-                            log::debug!("Load player {}", player_id);
-                            senders.write().unwrap().insert(player_id, sender);
-                        },
-                        PlayerToWorldMessage::UnloadPlayer(player_id) => {
-                            log::debug!("Unload player {}", player_id);
-                            senders.write().unwrap().remove(&player_id);
-                        }
-                        PlayerToWorldMessage::Walk(player_id) => log::trace!("Received player {} walk", player_id)
+                Ok(message) => match message {
+                    PlayerToWorldMessage::LoadPlayer(player_id, sender) => {
+                        log::debug!("Load player {}", player_id);
+                        senders.write().unwrap().insert(player_id, sender);
+                    }
+                    PlayerToWorldMessage::UnloadPlayer(player_id) => {
+                        log::debug!("Unload player {}", player_id);
+                        senders.write().unwrap().remove(&player_id);
+                    }
+                    PlayerToWorldMessage::Walk(player_id) => {
+                        log::trace!("Received player {} walk", player_id)
                     }
                 },
-                Err(err) => log::error!("{}", err)
+                Err(err) => log::error!("{}", err),
             }
         }
     }
 
-    async fn world_loop(_world: Arc<RwLock<World>>, world_options: WorldOptions, senders: Arc<RwLock<BTreeMap<u32, Sender<WorldToPlayerMessage>>>>) {
+    async fn world_loop(
+        _world: Arc<RwLock<World>>,
+        world_options: WorldOptions,
+        senders: Arc<RwLock<BTreeMap<u32, Sender<WorldToPlayerMessage>>>>,
+    ) {
         let mut hour = 0;
         let mut interval = stream::interval(Duration::from_secs(3));
         while interval.next().await.is_some() {
-            hour = if hour >= 23 {
-                0
-            } else {
-                hour + 1
-            };
+            hour = if hour >= 23 { 0 } else { hour + 1 };
             let light_level = Self::hour_to_light_level(hour);
 
             // log::trace!("Hour: {}, light_level: {}", hour, light_level);
@@ -96,13 +82,13 @@ impl World {
 
     const fn hour_to_light_level(hour: u8) -> u8 {
         match hour {
-            0|1|2|3|4|22|23 => 1,
-            5|21 => 2,
-            6|20 => 3,
-            7|19 => 4,
-            8|18 => 5,
-            9|10|11|12|13|14|15|16|17 => 6,
-            _ => 6
+            0 | 1 | 2 | 3 | 4 | 22 | 23 => 1,
+            5 | 21 => 2,
+            6 | 20 => 3,
+            7 | 19 => 4,
+            8 | 18 => 5,
+            9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 => 6,
+            _ => 6,
         }
     }
 }

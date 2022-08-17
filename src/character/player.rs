@@ -1,8 +1,5 @@
+use super::{Gender, Outfit};
 use crate::map::position::Position;
-use super::{
-    Outfit,
-    Gender
-};
 use num_enum::TryFromPrimitive;
 
 #[derive(Clone)]
@@ -13,7 +10,7 @@ pub struct Player {
     pub(crate) skills: Skills,
     pub(crate) stats: Stats,
     pub(crate) outfit: Outfit,
-    pub(crate) gender: Gender
+    pub(crate) gender: Gender,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -26,7 +23,7 @@ pub struct Skills {
     pub(crate) fist: u8,
     pub(crate) fishing: u8,
     pub(crate) gauche: u8,
-    pub(crate) missile: u8
+    pub(crate) missile: u8,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -40,7 +37,7 @@ pub struct Stats {
     pub(crate) experience_level: u8,
     pub(crate) mana_points: u16,
     pub(crate) magic_level: u8,
-    pub(crate) ammunition: u16
+    pub(crate) ammunition: u16,
 }
 
 #[repr(u8)]

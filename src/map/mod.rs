@@ -1,8 +1,12 @@
-use crate::constants::Fluid;
+use crate::{
+    constants::Fluid,
+    config::Map as MapConfig
+};
 use anyhow::{anyhow, Result};
 use once_cell::sync::OnceCell;
 use position::Position;
-use std::{collections::BTreeMap, str::FromStr};
+use std::collections::BTreeMap;
+use serde_derive::Deserialize;
 
 pub mod position;
 
@@ -14,6 +18,7 @@ const RESPAWN_LOCATION: Position = Position::new(50, 50, 7);
 
 pub static MAP: OnceCell<Map> = OnceCell::new();
 
+#[derive(Deserialize, Debug)]
 pub enum MapType {
     FixedTile,
     Checkerboard,
@@ -21,26 +26,10 @@ pub enum MapType {
     File,
 }
 
-impl FromStr for MapType {
-    type Err = &'static str;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "FixedTile" => Ok(MapType::FixedTile),
-            "Checkerboard" => Ok(MapType::Checkerboard),
-            "RookgaardTemple" => Ok(MapType::RookgaardTemple),
-            "File" => Ok(MapType::File),
-            _ => Err("no match"),
-        }
-    }
-}
-
-pub fn init_map(map_type: MapType, map_arg: Option<String>) -> Result<()> {
-    let map = match map_type {
+pub fn init_map(config: &MapConfig) -> Result<()> {
+    let map = match &config.map_type {
         MapType::FixedTile => {
-            let tile = map_arg
-                .ok_or_else(|| anyhow!("Send numeric tile argument on map_arg."))?
-                .parse()?;
+            let tile = config.tile.expect("No map tile specified");
             Map::fixed_tile(tile, MAP_WIDTH, MAP_HEIGHT, 0, 0, RESPAWN_LOCATION)
         }
         MapType::Checkerboard => {
@@ -50,7 +39,7 @@ pub fn init_map(map_type: MapType, map_arg: Option<String>) -> Result<()> {
             Map::rookgaard_temple(MAP_WIDTH, MAP_HEIGHT, 0, 0, RESPAWN_LOCATION)
         }
         MapType::File => {
-            let _file = map_arg.ok_or_else(|| anyhow!("Send file argument on map_arg."))?;
+            let _file = config.file.as_ref().expect("No map file specified");
             return Err(anyhow!("Map from file is not yet supported."));
         }
     };

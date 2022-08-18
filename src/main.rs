@@ -9,11 +9,14 @@ use legbone::{
     network::connection::Connection,
     world::{World, WorldOptions},
     Opts,
+    config
 };
 use std::sync::{Arc, RwLock};
 
 fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
+    config::init("server.toml")?;
+    let config = config::CONFIG.get().unwrap();
 
     let log_level = match opts.verbose {
         0 => log::LevelFilter::Info,
@@ -29,16 +32,17 @@ fn main() -> Result<()> {
         .init();
 
     log::info!("log level = {:?}", log_level);
+    log::info!("config = {config:?}");
 
-    let socket_addr = SocketAddr::from((opts.ip, opts.port));
+    let socket_addr = SocketAddr::from((config.server.ip, config.server.port));
 
-    if let Err(err) = legbone::map::init_map(opts.map, opts.map_arg) {
+    if let Err(err) = legbone::map::init_map(&config.world.map) {
         panic!("Error initializing map: {:?}", err);
     }
 
     let world = World::new();
     let world_options = WorldOptions {
-        day_night_cycle_enabled: opts.day_night_cycle_enabled,
+        day_night_cycle_enabled: config.world.day_night_cycle,
     };
 
     task::block_on(game_loop(world, socket_addr, world_options))

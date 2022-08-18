@@ -7,7 +7,7 @@ use crate::{
     map::position::PositionQualifier,
     network::header::HeaderReceive,
     world::message::{PlayerToWorldMessage, WorldToPlayerMessage},
-    Opts, Protocol,
+    Protocol,
 };
 use anyhow::Result;
 use async_std::{
@@ -15,7 +15,6 @@ use async_std::{
     prelude::*,
 };
 use byteorder_async::{AsyncReadByteOrder, LE};
-use clap::Parser;
 use std::{convert::TryInto, time::Duration};
 
 impl Connection {
@@ -422,7 +421,7 @@ impl Connection {
 
     async fn receive_chat(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
         let length = message.read_u16::<LE>().await?;
-        let opts: Opts = Opts::parse();
+        let config = crate::config::CONFIG.get().unwrap();
 
         let mut raw_msg = vec![0_u8; length as usize];
         message.read_exact(&mut raw_msg).await?;
@@ -430,7 +429,7 @@ impl Connection {
         let msg = unsafe { String::from_utf8_unchecked(raw_msg) };
         log::trace!("message = '{}'", msg);
 
-        if !opts.nodebug && msg.starts_with("\\d ") {
+        if config.server.debug_commands && msg.starts_with("\\d ") {
             self.receive_debug_command(&msg[2..]).await?;
         } else if msg.starts_with('#') {
             self.receive_qualified_chat(&msg).await?;

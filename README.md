@@ -13,24 +13,17 @@ legbone current works with versions 3.0 up to 6.x and has initial support for ve
 
 ```
 USAGE:
-    legbone.exe [FLAGS] [OPTIONS]
-
-FLAGS:
-    -h, --help       Prints help information
-        --nodebug    Disable debug chat commands
-    -v, --verbose    Verbosity level (-v or -vv)
-    -V, --version    Prints version information
+    legbone.exe [OPTIONS]
 
 OPTIONS:
-    -i, --ip <ip>              Server IP Address (v4) [default: 127.0.0.1]
-    -m, --map <map>            Type of map (Checkerboard, FixedTile, RookgaardTemple or File [default: Checkerboard]
-        --map-arg <map-arg>    Tile if FixedTile map, file if File map.
-    -p, --port <port>          Server port [default: 7171]
+    -h, --help       Print help information
+    -v, --verbose    Verbosity level (-v or -vv)
+    -V, --version    Print version information
 ```
 
 ### Client
 
-Older versions of the game can be found throughout the web. They can be run on modern computers using [winevdm](https://github.com/otya128/winevdm) or virtual machines. 
+Older versions of the game can be found throughout the web. They can be run on modern computers using [winevdm](https://github.com/otya128/winevdm) or virtual machines.
 
 ### Debug Commands
 

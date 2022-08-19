@@ -1,12 +1,9 @@
-use crate::{
-    constants::Fluid,
-    config::Map as MapConfig
-};
+use crate::{config::Map as MapConfig, constants::Fluid};
 use anyhow::{anyhow, Result};
 use once_cell::sync::OnceCell;
 use position::Position;
-use std::collections::BTreeMap;
 use serde_derive::Deserialize;
+use std::collections::BTreeMap;
 
 pub mod position;
 

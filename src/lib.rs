@@ -1,12 +1,12 @@
 mod character;
 mod chat;
+pub mod config;
 mod constants;
 mod io;
 pub mod map;
 pub mod network;
 mod persistence;
 pub mod world;
-pub mod config;
 
 use clap::Parser;
 use num_enum::TryFromPrimitive;
@@ -37,5 +37,5 @@ pub struct Opts {
         parse(from_occurrences),
         help = "Verbosity level (-v or -vv)"
     )]
-    pub verbose: u32
+    pub verbose: u32,
 }

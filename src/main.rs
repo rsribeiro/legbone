@@ -6,10 +6,10 @@ use async_std::{
 };
 use clap::Parser;
 use legbone::{
+    config,
     network::connection::Connection,
     world::{World, WorldOptions},
     Opts,
-    config
 };
 use std::sync::{Arc, RwLock};
 

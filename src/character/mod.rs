@@ -59,6 +59,26 @@ pub enum CharacterUpdateType {
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct Outfit {
+    pub(crate) outfit_type: OutfitType,
+    pub(crate) colors: OutfitColors
+}
+
+impl Outfit {
+    pub const fn new(outfit_type: OutfitType, colors: OutfitColors) -> Self {
+        Self { outfit_type, colors }
+    }
+
+    pub const fn human(colors: OutfitColors) -> Self {
+        Self::new(OutfitType::Human, colors)
+    }
+
+    pub const fn creature(outfit_type: OutfitType) -> Self {
+        Self::new(outfit_type, OutfitColors::new(0, 0, 0, 0))
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub struct OutfitColors {
     pub(crate) head: u8,
     pub(crate) body: u8,
     pub(crate) legs: u8,
@@ -70,7 +90,7 @@ pub struct Outfit {
     pub(crate) unknown_byte: u8,
 }
 
-impl Outfit {
+impl OutfitColors {
     pub const fn new(head: u8, body: u8, legs: u8, shoes: u8) -> Self {
         Self {
             head,
@@ -99,8 +119,8 @@ impl Outfit {
 }
 
 #[repr(u8)]
-#[derive(Debug, TryFromPrimitive)]
-pub enum CharacterOutfit {
+#[derive(Debug, TryFromPrimitive, Eq, PartialEq, Copy, Clone)]
+pub enum OutfitType {
     //Since v3.0
     Human = 1,
     Orc = 5,
@@ -130,7 +150,7 @@ pub enum CharacterOutfit {
     DemonSkeleton = 37,
     GiantSpider = 38,
 
-    //Since v6.2
+    //Since v5.1
     OrcShaman = 6,
     OrcWarrior = 7,
     OrcBerserker = 8,
@@ -138,7 +158,6 @@ pub enum CharacterOutfit {
     Warlock = 10,
     Hunter = 11,
     SantaClaus = 12,
-    BlackSheep = 13,
     Sheep = 14,
     Slime = 19,
     MinotaurMage = 23,
@@ -153,6 +172,9 @@ pub enum CharacterOutfit {
     Bug = 45,
     BlackKnight = 46,
     WildWarrior = 47,
+
+    //Since v6.2
+    BlackSheep = 13,
     Ghost = 48,
     FireElemental = 49,
     OrcSpearman = 50,

@@ -1,7 +1,7 @@
 use crate::{
     character::{
         player::{Player, Skills, Stats},
-        Gender, Outfit,
+        Gender, OutfitColors,
     },
     map::MAP,
 };
@@ -43,7 +43,7 @@ pub fn load_player_by_name(name: &str) -> Option<Player> {
                 magic_level: 0,
                 ammunition: 1,
             },
-            outfit: Outfit::new(0, 0, 0, 0),
+            outfit: OutfitColors::new(0, 0, 0, 0),
             gender: Gender::Male,
         }
     })

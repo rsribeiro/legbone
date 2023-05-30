@@ -2,7 +2,8 @@ use super::Connection;
 use crate::{
     character::{
         player::{InventorySlot, Player},
-        CharacterOutfit, CharacterUpdateType, Direction, HealthStatus, Outfit,
+        Outfit,
+        OutfitType, CharacterUpdateType, Direction, HealthStatus, OutfitColors,
     },
     chat::{encoding, ChatType},
     constants::*,
@@ -223,8 +224,8 @@ impl Connection {
     pub async fn prepare_update_outfit(
         &self,
         id: u32,
-        outfit: CharacterOutfit,
-        outfit_colors: Outfit,
+        outfit: OutfitType,
+        outfit_colors: OutfitColors,
     ) -> Result<Vec<u8>> {
         let mut buf = Cursor::new(Vec::<u8>::new());
 
@@ -416,25 +417,30 @@ impl Connection {
     async fn prepare_tile(&self, position: Position) -> Result<Vec<u8>> {
         let mut buf = Cursor::new(Vec::<u8>::new());
         if let Some(tile) = MAP.get().unwrap().get_tile_objects(position) {
-            for &tile_object in tile {
+            for tile_object in tile {
                 match tile_object {
-                    TileObject::Other(tile_id) => buf.write_u16::<LE>(tile_id).await?,
+                    TileObject::Other(tile_id) => buf.write_u16::<LE>(*tile_id).await?,
                     TileObject::FluidContainer(tile_id, fluid) => {
-                        buf.write_u16::<LE>(tile_id).await?;
+                        buf.write_u16::<LE>(*tile_id).await?;
                         if self.protocol >= Protocol::Tibia300 {
-                            buf.write_u8(fluid as u8).await?;
+                            buf.write_u8(*fluid as u8).await?;
                         }
                     }
                     TileObject::LightSource(tile_id, light_level) => {
-                        buf.write_u16::<LE>(tile_id).await?;
+                        buf.write_u16::<LE>(*tile_id).await?;
                         if self.protocol >= Protocol::Tibia300 {
-                            buf.write_u8(light_level).await?;
+                            buf.write_u8(*light_level).await?;
                         }
                     }
                     TileObject::Stackable(tile_id, count) => {
-                        buf.write_u16::<LE>(tile_id).await?;
+                        buf.write_u16::<LE>(*tile_id).await?;
                         if self.protocol >= Protocol::Tibia300 {
-                            buf.write_u8(count).await?;
+                            buf.write_u8(*count).await?;
+                        }
+                    },
+                    TileObject::Creature(id, name, outfit) => {
+                        if self.protocol >= Protocol::Tibia300 {
+                            buf.write_all(&self.prepare_character(*id, name, *outfit).await?).await?;
                         }
                     }
                 }
@@ -442,7 +448,7 @@ impl Connection {
         }
 
         if position == self.player.position {
-            buf.write_all(&self.prepare_character_on_map().await?)
+            buf.write_all(&self.prepare_player_character().await?)
                 .await?;
         }
 
@@ -454,27 +460,32 @@ impl Connection {
         Ok(buf.into_inner())
     }
 
-    async fn prepare_character_on_map(&self) -> Result<Vec<u8>> {
+    async fn prepare_player_character(&self) -> Result<Vec<u8>> {
+        if self.protocol == Protocol::Tibia103 {
+            let mut buf = Cursor::new(Vec::<u8>::new());
+            buf.write_u8(AuxiliaryHeaderSend::Character as u8).await?;
+            buf.write_outfit_colors(self.player.outfit).await?;
+            Ok(buf.into_inner())
+        } else {
+            self.prepare_character(self.player.id, &self.player.name, Outfit::human(self.player.outfit)).await
+        }
+    }
+
+    async fn prepare_character(&self, id: u32, name: &str, outfit: Outfit) -> Result<Vec<u8>> {
         let mut buf = Cursor::new(Vec::<u8>::new());
 
-        if self.protocol == Protocol::Tibia103 {
-            buf.write_u8(AuxiliaryHeaderSend::Character as u8).await?;
-            buf.write_outfit_colors(self.player.outfit).await?;
-        } else {
-            buf.write_u8(AuxiliaryHeaderSend::Character as u8).await?;
-            buf.write_u32::<LE>(0).await?; //knows creature
-            buf.write_u32::<LE>(self.player.id).await?;
-            buf.write_string_with_fixed_length(&self.player.name, 30)
-                .await?;
-            buf.write_u8(HealthStatus::Healthy as u8).await?;
-            buf.write_u8(Direction::South as u8).await?;
+        buf.write_u8(AuxiliaryHeaderSend::Character as u8).await?;
+        buf.write_u32::<LE>(0).await?; //knows creature
+        buf.write_u32::<LE>(id).await?;
+        buf.write_string_with_fixed_length(name, 30).await?;
+        buf.write_u8(HealthStatus::Healthy as u8).await?;
+        buf.write_u8(Direction::South as u8).await?;
 
-            buf.write_u8(CharacterOutfit::Human as u8).await?;
-            buf.write_outfit_colors(self.player.outfit).await?;
+        buf.write_u8(outfit.outfit_type as u8).await?;
+        buf.write_outfit_colors(outfit.colors).await?;
 
-            //light level=0
-            buf.write_u8(0).await?;
-        }
+        //light level=0
+        buf.write_u8(0).await?;
 
         Ok(buf.into_inner())
     }

@@ -1,6 +1,6 @@
 use super::Connection;
 use crate::{
-    character::{player::InventorySlot, CharacterUpdateType, Outfit},
+    character::{player::InventorySlot, CharacterUpdateType, OutfitColors},
     chat::ChatType,
     constants::MagicEffect,
     io::WriteExt,
@@ -209,7 +209,7 @@ impl Connection {
 
     async fn command_outfit(&self, outfit: &str) -> Result<()> {
         let outfit = outfit.parse::<u8>()?.try_into()?;
-        let outfit_colors = Outfit::new(0, 0, 0, 0);
+        let outfit_colors = OutfitColors::new(0, 0, 0, 0);
         self.queue_message(
             self.prepare_update_outfit(self.player_id, outfit, outfit_colors)
                 .await?,

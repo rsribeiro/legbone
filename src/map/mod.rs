@@ -1,4 +1,4 @@
-use crate::{config::Map as MapConfig, constants::Fluid};
+use crate::{config::Map as MapConfig, constants::Fluid, character::{Outfit, OutfitType}};
 use anyhow::{anyhow, Result};
 use once_cell::sync::OnceCell;
 use position::Position;
@@ -20,6 +20,7 @@ pub enum MapType {
     FixedTile,
     Checkerboard,
     RookgaardTemple,
+    CreatureTest,
     File,
 }
 
@@ -34,6 +35,9 @@ pub fn init_map(config: &MapConfig) -> Result<()> {
         }
         MapType::RookgaardTemple => {
             Map::rookgaard_temple(MAP_WIDTH, MAP_HEIGHT, 0, 0, RESPAWN_LOCATION)
+        }
+        MapType::CreatureTest => {
+            Map::creature_test(MAP_WIDTH, MAP_HEIGHT, 0, 0, RESPAWN_LOCATION)
         }
         MapType::File => {
             let _file = config.file.as_ref().expect("No map file specified");
@@ -62,12 +66,13 @@ pub struct MapMetadata {
 #[derive(Debug)]
 struct Tile(Vec<TileObject>);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum TileObject {
     Other(u16),
     FluidContainer(u16, Fluid),
     LightSource(u16, u8),
     Stackable(u16, u8),
+    Creature(u32, String, Outfit)
 }
 
 impl Map {
@@ -130,6 +135,42 @@ impl Map {
             metadata: MapMetadata::new(width, height, offset_x, offset_y, respawn_location),
             tiles: map,
         }
+    }
+
+    fn creature_test(
+        width: u16,
+        height: u16,
+        offset_x: u16,
+        offset_y: u16,
+        respawn_location: Position,
+    ) -> Map {
+        let mut map =
+            Map::checkerboard_pattern(width, height, offset_x, offset_y, respawn_location);
+
+        let center = map.metadata.respawn_location;
+        let x_1 = center.x - 5;
+        let x_2 = center.x + 5;
+        let y_1 = center.y - 3;
+
+        let mut x = x_1;
+        let mut y = y_1;
+        let mut id = 12345;
+        for outfit_type in 0..=0xff {
+            if let Ok(outfit_type) = TryInto::<OutfitType>::try_into(outfit_type) {
+                map.get_tile(Position::new(x, y, 7))
+                    .push(TileObject::Creature(id, "CREATURE".to_string(), Outfit::creature(outfit_type)));
+
+                id += 1;
+            }
+
+            x += 1;
+            if x > x_2 {
+                y += 1;
+                x = x_1;
+            }
+        }
+
+        map
     }
 
     fn rookgaard_temple(

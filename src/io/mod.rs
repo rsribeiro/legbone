@@ -1,5 +1,5 @@
 use crate::{
-    character::Gender, character::Outfit, map::position::Position, network::header::HeaderSend,
+    character::Gender, character::OutfitColors, map::position::Position, network::header::HeaderSend,
     Protocol,
 };
 use anyhow::Result;
@@ -33,12 +33,12 @@ pub trait ReadExt: Read + Unpin + Sized {
     }
 
     /// There are 4 colors, stored in 2 bytes. Each byte encodes 2 colors.
-    async fn read_outfit_colors(&mut self) -> Result<Outfit> {
+    async fn read_outfit_colors(&mut self) -> Result<OutfitColors> {
         let (legs, shoes) = self.read_u4().await?;
         let (head, body) = self.read_u4().await?;
         let unknown_byte = self.read_u8().await?;
 
-        Ok(Outfit::new_with_unknown_byte(
+        Ok(OutfitColors::new_with_unknown_byte(
             head,
             body,
             legs,
@@ -111,7 +111,7 @@ impl<W: Write + Unpin> WriteExt for W {}
 
 #[async_trait]
 pub trait WriteExt: Write + Unpin + Sized {
-    async fn write_outfit_colors(&mut self, outfit: Outfit) -> Result<()> {
+    async fn write_outfit_colors(&mut self, outfit: OutfitColors) -> Result<()> {
         self.write_u4(outfit.legs, outfit.shoes).await?;
         self.write_u4(outfit.head, outfit.body).await?;
         self.write_u8(outfit.unknown_byte).await?;
@@ -120,7 +120,7 @@ pub trait WriteExt: Write + Unpin + Sized {
 
     async fn write_outfit_colors_with_unknown_byte(
         &mut self,
-        outfit: Outfit,
+        outfit: OutfitColors,
         unknown_byte: u8,
     ) -> Result<()> {
         self.write_u4(outfit.legs, outfit.shoes).await?;
@@ -229,7 +229,7 @@ mod tests {
 
     #[async_std::test]
     async fn test_read_write_outfit_colors() -> Result<()> {
-        let outfit_before = Outfit::new_with_unknown_byte(1, 2, 3, 4, 5);
+        let outfit_before = OutfitColors::new_with_unknown_byte(1, 2, 3, 4, 5);
 
         let mut buf = Cursor::new(Vec::<u8>::new());
         buf.write_outfit_colors(outfit_before).await?;

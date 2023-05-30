@@ -1,15 +1,15 @@
-use super::{Gender, Outfit};
+use super::{Gender, OutfitColors};
 use crate::map::position::Position;
 use num_enum::TryFromPrimitive;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Player {
     pub(crate) id: u32,
     pub(crate) name: String,
     pub(crate) position: Position,
     pub(crate) skills: Skills,
     pub(crate) stats: Stats,
-    pub(crate) outfit: Outfit,
+    pub(crate) outfit: OutfitColors,
     pub(crate) gender: Gender,
 }
 

@@ -1,6 +1,6 @@
 use super::Connection;
 use crate::{
-    character::{CharacterOutfit, Direction, FightMode, FightStance},
+    character::{OutfitType, Direction, FightMode, FightStance},
     chat::ChatType,
     constants::{MagicEffect, ObjectUpdateType},
     io::ReadExt,
@@ -264,7 +264,7 @@ impl Connection {
         };
 
         self.queue_message(
-            self.prepare_update_outfit(self.player.id, CharacterOutfit::Human, outfit)
+            self.prepare_update_outfit(self.player.id, OutfitType::Human, outfit)
                 .await?,
         )
         .await;

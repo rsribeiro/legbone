@@ -8,7 +8,7 @@ pub mod network;
 mod persistence;
 pub mod world;
 
-use clap::Parser;
+use clap::{Parser, ArgAction};
 use num_enum::TryFromPrimitive;
 
 #[repr(u16)]
@@ -34,8 +34,8 @@ pub struct Opts {
     #[clap(
         short,
         long,
-        parse(from_occurrences),
+        action = ArgAction::Count,
         help = "Verbosity level (-v or -vv)"
     )]
-    pub verbose: u32,
+    pub verbose: u8,
 }

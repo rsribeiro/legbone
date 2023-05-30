@@ -3,7 +3,6 @@ use anyhow::Result;
 use async_std::net::Ipv4Addr;
 use once_cell::sync::OnceCell;
 use serde_derive::Deserialize;
-use std::fs;
 
 pub static CONFIG: OnceCell<Config> = OnceCell::new();
 
@@ -34,7 +33,7 @@ pub struct Map {
 }
 
 pub fn init(config: &str) -> Result<()> {
-    let config: Config = toml::from_slice(&fs::read(config)?)?;
+    let config = toml::from_str::<Config>(&std::fs::read_to_string(config)?)?;
     CONFIG.set(config).unwrap();
     Ok(())
 }

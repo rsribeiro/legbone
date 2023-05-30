@@ -1,4 +1,8 @@
-use crate::{config::Map as MapConfig, constants::Fluid, character::{Outfit, OutfitType}};
+use crate::{
+    character::{Outfit, OutfitType},
+    config::Map as MapConfig,
+    constants::Fluid,
+};
 use anyhow::{anyhow, Result};
 use once_cell::sync::OnceCell;
 use position::Position;
@@ -36,9 +40,7 @@ pub fn init_map(config: &MapConfig) -> Result<()> {
         MapType::RookgaardTemple => {
             Map::rookgaard_temple(MAP_WIDTH, MAP_HEIGHT, 0, 0, RESPAWN_LOCATION)
         }
-        MapType::CreatureTest => {
-            Map::creature_test(MAP_WIDTH, MAP_HEIGHT, 0, 0, RESPAWN_LOCATION)
-        }
+        MapType::CreatureTest => Map::creature_test(MAP_WIDTH, MAP_HEIGHT, 0, 0, RESPAWN_LOCATION),
         MapType::File => {
             let _file = config.file.as_ref().expect("No map file specified");
             return Err(anyhow!("Map from file is not yet supported."));
@@ -72,7 +74,7 @@ pub enum TileObject {
     FluidContainer(u16, Fluid),
     LightSource(u16, u8),
     Stackable(u16, u8),
-    Creature(u32, String, Outfit)
+    Creature(u32, String, Outfit),
 }
 
 impl Map {
@@ -158,7 +160,11 @@ impl Map {
         for outfit_type in 0..=0xff {
             if let Ok(outfit_type) = TryInto::<OutfitType>::try_into(outfit_type) {
                 map.get_tile(Position::new(x, y, 7))
-                    .push(TileObject::Creature(id, "CREATURE".to_string(), Outfit::creature(outfit_type)));
+                    .push(TileObject::Creature(
+                        id,
+                        "CREATURE".to_string(),
+                        Outfit::creature(outfit_type),
+                    ));
 
                 id += 1;
             }

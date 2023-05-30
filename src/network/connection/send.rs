@@ -2,8 +2,7 @@ use super::Connection;
 use crate::{
     character::{
         player::{InventorySlot, Player},
-        Outfit,
-        OutfitType, CharacterUpdateType, Direction, HealthStatus, OutfitColors,
+        CharacterUpdateType, Direction, HealthStatus, Outfit, OutfitColors, OutfitType,
     },
     chat::{encoding, ChatType},
     constants::*,
@@ -437,10 +436,11 @@ impl Connection {
                         if self.protocol >= Protocol::Tibia300 {
                             buf.write_u8(*count).await?;
                         }
-                    },
+                    }
                     TileObject::Creature(id, name, outfit) => {
                         if self.protocol >= Protocol::Tibia300 {
-                            buf.write_all(&self.prepare_character(*id, name, *outfit).await?).await?;
+                            buf.write_all(&self.prepare_character(*id, name, *outfit).await?)
+                                .await?;
                         }
                     }
                 }
@@ -467,7 +467,12 @@ impl Connection {
             buf.write_outfit_colors(self.player.outfit).await?;
             Ok(buf.into_inner())
         } else {
-            self.prepare_character(self.player.id, &self.player.name, Outfit::human(self.player.outfit)).await
+            self.prepare_character(
+                self.player.id,
+                &self.player.name,
+                Outfit::human(self.player.outfit),
+            )
+            .await
         }
     }
 

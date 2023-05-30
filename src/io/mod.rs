@@ -1,6 +1,6 @@
 use crate::{
-    character::Gender, character::OutfitColors, map::position::Position, network::header::HeaderSend,
-    Protocol,
+    character::Gender, character::OutfitColors, map::position::Position,
+    network::header::HeaderSend, Protocol,
 };
 use anyhow::Result;
 use async_std::{

@@ -1,6 +1,6 @@
 use super::Connection;
 use crate::{
-    character::{OutfitType, Direction, FightMode, FightStance},
+    character::{Direction, FightMode, FightStance, OutfitType},
     chat::ChatType,
     constants::{MagicEffect, ObjectUpdateType},
     io::ReadExt,

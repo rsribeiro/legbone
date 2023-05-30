@@ -8,7 +8,7 @@ pub mod network;
 mod persistence;
 pub mod world;
 
-use clap::{Parser, ArgAction};
+use clap::{ArgAction, Parser};
 use num_enum::TryFromPrimitive;
 
 #[repr(u16)]

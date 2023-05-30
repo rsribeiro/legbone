@@ -60,12 +60,15 @@ pub enum CharacterUpdateType {
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub struct Outfit {
     pub(crate) outfit_type: OutfitType,
-    pub(crate) colors: OutfitColors
+    pub(crate) colors: OutfitColors,
 }
 
 impl Outfit {
     pub const fn new(outfit_type: OutfitType, colors: OutfitColors) -> Self {
-        Self { outfit_type, colors }
+        Self {
+            outfit_type,
+            colors,
+        }
     }
 
     pub const fn human(colors: OutfitColors) -> Self {

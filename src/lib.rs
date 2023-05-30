@@ -14,18 +14,23 @@ use num_enum::TryFromPrimitive;
 #[repr(u16)]
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, TryFromPrimitive)]
 pub enum Protocol {
-    // Clients 6.0 and 6.1 can be found on the internet, but are incomplete (no data files)
     Tibia103 = 103,
     Tibia300 = 300,
     Tibia310 = 310,
     Tibia400 = 400,
+    Tibia412 = 412,
     Tibia501 = 501,
+    Tibia510 = 510,
+    // Some files from clients 5.11, 6.0 and 6.1 can be found on the internet, but they are incomplete
+    // Tibia511 = 511,
     // Tibia600 = 600,
     // Tibia610 = 610,
     Tibia620 = 620,
     Tibia630 = 630,
     Tibia640 = 640,
     Tibia650 = 650,
+    Tibia661 = 661,
+    Tibia694 = 694,
 }
 
 #[derive(Parser)]

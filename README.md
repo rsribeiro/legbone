@@ -1,7 +1,7 @@
 legbone
 ===============
 
-legbone is an experimental server for early versions of the game Tibia made in Rust.
+legbone is an experimental server for early versions of the game Tibia.
 
 The objective of this project is not to create a polished and fully featured playable server for these versions. Instead, legbone is intended as a documentation of the peculiarities of the communication protocol of the early versions of the game (from 1.0 to 6.x). So, it is not really a game, more of a sandbox with lots of hardcoded values in which clients can join with any user name and password, but cannot see or communicate with each other.
 

@@ -4,7 +4,7 @@ use crate::{
     constants::Fluid,
 };
 use anyhow::{anyhow, Result};
-use once_cell::sync::OnceCell;
+use std::sync::OnceLock;
 use position::Position;
 use serde_derive::Deserialize;
 use std::collections::BTreeMap;
@@ -17,7 +17,7 @@ const MAP_HEIGHT: u16 = 100;
 const MAP_LAYERS: u8 = 16;
 const RESPAWN_LOCATION: Position = Position::new(50, 50, 7);
 
-pub static MAP: OnceCell<Map> = OnceCell::new();
+pub static MAP: OnceLock<Map> = OnceLock::new();
 
 #[derive(Deserialize, Debug)]
 pub enum MapType {

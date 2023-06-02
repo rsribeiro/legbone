@@ -634,7 +634,6 @@ dependencies = [
  "futures",
  "log",
  "num_enum",
- "once_cell",
  "serde",
  "serde_derive",
  "toml",

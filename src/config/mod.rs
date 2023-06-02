@@ -1,10 +1,10 @@
 use crate::map::MapType;
 use anyhow::Result;
 use async_std::net::Ipv4Addr;
-use once_cell::sync::OnceCell;
+use std::sync::OnceLock;
 use serde_derive::Deserialize;
 
-pub static CONFIG: OnceCell<Config> = OnceCell::new();
+pub static CONFIG: OnceLock<Config> = OnceLock::new();
 
 #[derive(Deserialize, Debug)]
 pub struct Config {

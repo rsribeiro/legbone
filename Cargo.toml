@@ -13,7 +13,6 @@ flume = "0.10"
 byteorder_async = { git="https://github.com/rsribeiro/byteorder_async", features=["futures_async"] }
 futures = "0.3"
 async-trait = "0.1"
-once_cell = "1.17"
 anyhow = "1.0"
 toml = "0.7"
 serde = "1.0"

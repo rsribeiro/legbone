@@ -1,3 +1,5 @@
+pub mod byteorder_async;
+
 use crate::{
     character::Gender, character::OutfitColors, map::position::Position,
     network::header::HeaderSend, Protocol,
@@ -7,12 +9,11 @@ use async_std::{
     io::{Read, Write},
     prelude::*,
 };
-use async_trait::async_trait;
-use byteorder_async::{AsyncReadByteOrder, AsyncWriteByteOrder, LE};
+use byteorder_async::{AsyncReadByteOrder, AsyncWriteByteOrder};
+use byteorder::LE;
 
 impl<R: Read + Unpin> ReadExt for R {}
 
-#[async_trait]
 pub trait ReadExt: Read + Unpin + Sized {
     async fn read_gender(&mut self, protocol: Protocol) -> Result<Gender> {
         let gender = match self.read_u8().await? {
@@ -109,7 +110,6 @@ pub trait ReadExt: Read + Unpin + Sized {
 
 impl<W: Write + Unpin> WriteExt for W {}
 
-#[async_trait]
 pub trait WriteExt: Write + Unpin + Sized {
     async fn write_outfit_colors(&mut self, outfit: OutfitColors) -> Result<()> {
         self.write_u4(outfit.legs, outfit.shoes).await?;

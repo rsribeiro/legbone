@@ -13,7 +13,8 @@ use crate::{
 };
 use anyhow::{anyhow, Error, Result};
 use async_std::{io::Cursor, net::SocketAddr, prelude::*};
-use byteorder_async::{AsyncWriteByteOrder, LE};
+use crate::io::byteorder_async::AsyncWriteByteOrder;
+use byteorder::LE;
 
 impl Connection {
     async fn send_message(&mut self, message: &[u8]) -> Result<()> {

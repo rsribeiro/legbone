@@ -11,7 +11,8 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 use async_std::{io, net::TcpStream, prelude::*};
-use byteorder_async::{AsyncReadByteOrder, AsyncWriteByteOrder, LE};
+use crate::io::byteorder_async::{AsyncReadByteOrder, AsyncWriteByteOrder};
+use byteorder::LE;
 use crossbeam_queue::SegQueue;
 use flume::{unbounded, Receiver, Sender};
 use std::{convert::TryInto, time::Duration};

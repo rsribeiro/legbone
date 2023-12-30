@@ -14,7 +14,8 @@ use async_std::{
     io::{self, Cursor},
     prelude::*,
 };
-use byteorder_async::{AsyncReadByteOrder, LE};
+use crate::io::byteorder_async::AsyncReadByteOrder;
+use byteorder::LE;
 use std::{convert::TryInto, time::Duration};
 
 impl Connection {

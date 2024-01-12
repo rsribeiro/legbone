@@ -1,7 +1,10 @@
 use crate::map::MapType;
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use async_std::net::Ipv4Addr;
-use std::sync::OnceLock;
+use std::{
+    sync::OnceLock,
+    path::Path
+};
 use serde_derive::Deserialize;
 
 pub static CONFIG: OnceLock<Config> = OnceLock::new();
@@ -32,8 +35,12 @@ pub struct Map {
     pub tile: Option<u16>,
 }
 
-pub fn init(config: &str) -> Result<()> {
-    let config = toml::from_str::<Config>(&std::fs::read_to_string(config)?)?;
-    CONFIG.set(config).unwrap();
-    Ok(())
+pub fn init(config: &Path) -> Result<()> {
+    if config.exists() {
+        let config = toml::from_str::<Config>(&std::fs::read_to_string(config)?)?;
+        CONFIG.set(config).unwrap();
+        Ok(())
+    } else {
+        Err(anyhow!("File {config:?} does not exist"))
+    }
 }

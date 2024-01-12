@@ -11,11 +11,17 @@ use legbone::{
     world::{World, WorldOptions},
     Opts,
 };
-use std::sync::{Arc, RwLock};
+use std::{
+    sync::{
+        Arc,
+        RwLock
+    },
+    path::Path
+};
 
 fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
-    config::init("server.toml")?;
+    config::init(Path::new("server.toml"))?;
     let config = config::CONFIG.get().unwrap();
 
     let log_level = match opts.verbose {

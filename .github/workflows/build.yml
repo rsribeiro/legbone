@@ -1,0 +1,42 @@
+name: Build
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        platform:
+          - os_name: windows
+            os: windows-latest
+            bin: legbone.exe
+          - os_name: linux
+            os: ubuntu-latest
+            bin: legbone
+          - os_name: macos
+            os: macos-latest
+            bin: legbone
+
+    runs-on: ${{ matrix.platform.os }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Run tests
+      run: cargo test --verbose
+
+    - name: Build
+      run: cargo build --release --verbose
+
+    - name: Upload the build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: legbone-${{ matrix.platform.os_name }}
+        path: target/release/${{ matrix.platform.bin }}

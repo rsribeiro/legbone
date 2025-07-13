@@ -12,6 +12,7 @@ use futures::io::{
 
 //byteorder_async crate seems to be dead and I don't want to maintain a fork, pulled functions here
 
+#[allow(unused)]
 pub(crate) trait AsyncReadByteOrder: AsyncRead+Unpin {
     #[inline]
     async fn read_u8(&mut self) -> Result<u8> {
@@ -267,6 +268,7 @@ pub(crate) trait AsyncReadByteOrder: AsyncRead+Unpin {
 
 impl<R: AsyncRead+Unpin> AsyncReadByteOrder for R {}
 
+#[allow(unused)]
 pub(crate) trait AsyncWriteByteOrder: AsyncWrite+Unpin {
     #[inline]
     async fn write_u8(&mut self, n: u8) -> Result<()> {
@@ -426,5 +428,7 @@ impl<W: AsyncWrite+Unpin> AsyncWriteByteOrder for W {}
 #[allow(dead_code)]
 #[inline]
 unsafe fn slice_to_u8_mut<T: Copy>(slice: &mut [T]) -> &mut [u8] {
-    slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut u8, std::mem::size_of_val(slice))
+    unsafe {
+        slice::from_raw_parts_mut(slice.as_mut_ptr() as *mut u8, std::mem::size_of_val(slice))
+    }
 }

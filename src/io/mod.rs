@@ -21,11 +21,7 @@ pub trait ReadExt: Read + Unpin + Sized {
             0 if protocol < Protocol::Tibia501 => Gender::Female,
             2 if protocol >= Protocol::Tibia501 => Gender::Female,
             raw_gender => {
-                log::error!(
-                    "Unknown gender byte {} for protocol {:?}, assuming 'male'.",
-                    raw_gender,
-                    protocol
-                );
+                log::error!("Unknown gender byte {raw_gender} for protocol {protocol:?}, assuming 'male'.");
                 Gender::Male
             }
         };
@@ -103,13 +99,14 @@ pub trait ReadExt: Read + Unpin + Sized {
     async fn skip(&mut self, bytes: u16) -> Result<()> {
         let mut buf = vec![0_u8; bytes as usize];
         self.read_exact(&mut buf).await?;
-        log::trace!("Skipped {} bytes: {:02x?}", bytes, buf);
+        log::trace!("Skipped {bytes} bytes: {buf:02x?}");
         Ok(())
     }
 }
 
 impl<W: Write + Unpin> WriteExt for W {}
 
+#[allow(unused)]
 pub trait WriteExt: Write + Unpin + Sized {
     async fn write_outfit_colors(&mut self, outfit: OutfitColors) -> Result<()> {
         self.write_u4(outfit.legs, outfit.shoes).await?;
@@ -186,8 +183,7 @@ pub trait WriteExt: Write + Unpin + Sized {
 
     async fn write_string_with_fixed_length(&mut self, string: &str, length: u16) -> Result<()> {
         if string.len() > length as usize {
-            self.write_all(string[0..length as usize].as_bytes())
-                .await?;
+            self.write_all(&string.as_bytes()[0..length as usize]).await?;
         } else {
             self.write_all(string.as_bytes()).await?;
             self.write_zeroes(length as usize - string.len()).await?;

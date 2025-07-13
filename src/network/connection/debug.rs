@@ -26,7 +26,7 @@ impl Connection {
 
     #[allow(clippy::unit_arg)]
     async fn debug_command(&self, command: &str, args: Vec<&str>) -> Result<()> {
-        log::debug!("Received debug command {:?}", command);
+        log::debug!("Received debug command {command:?}");
         match command {
             "chars" => self.command_chars().await,
             "char" => self.command_char(args[0]).await,
@@ -151,7 +151,7 @@ impl Connection {
     async fn command_item(&self, slot: &str, item: &str) -> Result<()> {
         let slot: InventorySlot = slot.parse::<u8>()?.try_into()?;
         let item = u16::from_str_radix(item, 16)?;
-        log::trace!("Giving item 0x{:04x?} on slot {:?}", item, slot);
+        log::trace!("Giving item 0x{item:04x?} on slot {slot:?}");
         self.queue_message(self.prepare_equipped_item(slot, item, 0).await?)
             .await;
         Ok(())
@@ -160,7 +160,7 @@ impl Connection {
     async fn command_item_right_hand(&self, item: &str) -> Result<()> {
         let slot = InventorySlot::RightHand;
         let item = u16::from_str_radix(item, 16)?;
-        log::trace!("Giving item 0x{:04x?} on slot {:?}", item, slot);
+        log::trace!("Giving item 0x{item:04x?} on slot {slot:?}");
         self.queue_message(self.prepare_equipped_item(slot, item, 0).await?)
             .await;
         Ok(())
@@ -191,8 +191,8 @@ impl Connection {
         static NEXT_TYPE: AtomicU8 = AtomicU8::new(0x41);
         let chat_type = NEXT_TYPE.fetch_add(1, Ordering::SeqCst).try_into()?;
 
-        let msg = &format!("chat_type=0x{:02x?}", chat_type);
-        log::trace!("{}", msg);
+        let msg = &format!("chat_type=0x{chat_type:02x?}");
+        log::trace!("{msg}");
 
         self.queue_message(
             self.prepare_chat(

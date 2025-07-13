@@ -37,13 +37,13 @@ fn main() -> Result<()> {
         .filter(Some("polling"), log::LevelFilter::Error)
         .init();
 
-    log::info!("log level = {:?}", log_level);
+    log::info!("log level = {log_level:?}");
     log::info!("config = {config:?}");
 
     let socket_addr = SocketAddr::from((config.server.ip, config.server.port));
 
     if let Err(err) = legbone::map::init_map(&config.world.map) {
-        panic!("Error initializing map: {:?}", err);
+        panic!("Error initializing map: {err:?}");
     }
 
     let world = World::new();
@@ -60,7 +60,7 @@ async fn game_loop(
     world_options: WorldOptions,
 ) -> Result<()> {
     let listener = TcpListener::bind(socket_addr).await?;
-    log::info!("Server listening on address {}", socket_addr);
+    log::info!("Server listening on address {socket_addr}");
 
     let sender = {
         World::init_loop(&world, world_options);
@@ -80,12 +80,12 @@ async fn game_loop(
                     if let Some(mut connection) = connection {
                         if let Err(err) = connection.handle_connection().await {
                             if let Err(err) = connection.send_error(err).await {
-                                log::error!("Error sending error to client: {}", err);
+                                log::error!("Error sending error to client: {err}");
                             }
                         }
                     }
                 }
-                Err(err) => log::error!("Error on client login: {}", err),
+                Err(err) => log::error!("Error on client login: {err}"),
             }
         });
     }

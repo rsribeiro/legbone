@@ -52,7 +52,7 @@ impl Connection {
         sender: Sender<PlayerToWorldMessage>,
     ) -> Result<Option<Connection>> {
         let length = stream.read_u16::<LE>().await?;
-        log::trace!("handle_login: length={}", length);
+        log::trace!("handle_login: length={length}");
 
         let (player, protocol) = match length {
             67 => player_login(&mut stream).await?,
@@ -100,10 +100,7 @@ async fn player_login(stream: &mut TcpStream) -> Result<(Option<Player>, Protoco
     stream.read_string(&mut password, 30).await?;
 
     log::trace!(
-        "Journey Onward! Name={}, password={}, protocol={:?}",
-        name,
-        password,
-        protocol
+        "Journey Onward! Name={name}, password={password}, protocol={protocol:?}"
     );
 
     Ok((persistence::load_player_by_name(&name), protocol))
@@ -150,7 +147,7 @@ async fn create_new_player(stream: &mut TcpStream) -> Result<(Option<Player>, Pr
         stream.read_string(&mut comment, 500).await?;
     }
 
-    log::trace!("New Game! Name={}, password={}, real name={}, location={}, e-mail={}, comment={}, protocol={:?}, outfit={:?}, gender={:?}", name, password, real_name, location, email, comment, protocol, outfit_colors, gender);
+    log::trace!("New Game! Name={name}, password={password}, real name={real_name}, location={location}, e-mail={email}, comment={comment}, protocol={protocol:?}, outfit={outfit_colors:?}, gender={gender:?}");
 
     let mut player = persistence::create_player(&name);
     player.outfit = outfit_colors;
@@ -162,7 +159,7 @@ async fn account_login(
     stream: &mut TcpStream,
     message_length: u16,
 ) -> Result<(Option<Player>, Protocol)> {
-    log::trace!("Account login attempt. length={}", message_length);
+    log::trace!("Account login attempt. length={message_length}");
 
     //TODO validate message using initial bytes
     //640- = NA
@@ -202,9 +199,7 @@ async fn account_login(
         Ok((None, protocol))
     } else {
         log::error!(
-            "Unrecognized login message. Protocol={:?}, length={}",
-            protocol,
-            message_length
+            "Unrecognized login message. Protocol={protocol:?}, length={message_length}"
         );
         Err(anyhow!(
             "Unrecognized login message. Protocol={:?}, length={}",
@@ -217,7 +212,7 @@ async fn account_login(
 impl Drop for Connection {
     fn drop(&mut self) {
         match self.stream.peer_addr() {
-            Ok(peer_address) => log::info!("Connection with {} finished.", peer_address),
+            Ok(peer_address) => log::info!("Connection with {peer_address} finished."),
             Err(_) => log::warn!("Finishing connection"),
         }
     }

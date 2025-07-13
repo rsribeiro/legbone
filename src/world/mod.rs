@@ -44,18 +44,18 @@ impl World {
             match world.read().unwrap().receiver.recv() {
                 Ok(message) => match message {
                     PlayerToWorldMessage::LoadPlayer(player_id, sender) => {
-                        log::debug!("Load player {}", player_id);
+                        log::debug!("Load player {player_id}");
                         senders.write().unwrap().insert(player_id, sender);
                     }
                     PlayerToWorldMessage::UnloadPlayer(player_id) => {
-                        log::debug!("Unload player {}", player_id);
+                        log::debug!("Unload player {player_id}");
                         senders.write().unwrap().remove(&player_id);
                     }
                     PlayerToWorldMessage::Walk(player_id) => {
-                        log::trace!("Received player {} walk", player_id)
+                        log::trace!("Received player {player_id} walk")
                     }
                 },
-                Err(err) => log::error!("{}", err),
+                Err(err) => log::error!("{err}"),
             }
         }
     }

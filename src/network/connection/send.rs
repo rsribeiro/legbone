@@ -99,7 +99,7 @@ impl Connection {
     }
 
     pub async fn send_error(&mut self, err: Error) -> Result<()> {
-        log::info!("Sending error {:?} to client", err);
+        log::info!("Sending error {err:?} to client");
         self.send_message(&self.prepare_error(&err.to_string()).await?)
             .await
     }
@@ -369,16 +369,10 @@ impl Connection {
         let corner_2 = corner + (width as i16 - 1, height as i16 - 1, layers as i8 - 1);
 
         log::trace!(
-            "center = {:?}, corner_1 = {:?}, corner_2 = {:?}",
-            position,
-            corner,
-            corner_2
+            "center = {position:?}, corner_1 = {corner:?}, corner_2 = {corner_2:?}"
         );
         log::trace!(
-            "width = {:?}, height={:?}, layers={:?}",
-            width,
-            height,
-            layers
+            "width = {width:?}, height={height:?}, layers={layers:?}"
         );
 
         for z in 0..layers {
@@ -621,7 +615,7 @@ impl Connection {
         buf.write_header(HeaderSend::UserInfo, self.protocol)
             .await?;
         buf.write_u16::<LE>(0x1010).await?; //# of bytes to allocate for text
-        let info = &format!("INFO: name={}", player_name);
+        let info = &format!("INFO: name={player_name}");
         buf.write_null_terminated_string(info).await?;
 
         Ok(buf.into_inner())
@@ -723,10 +717,7 @@ impl Connection {
         let mut buf = Cursor::new(Vec::<u8>::new());
 
         log::trace!(
-            "move character from {:?} to {:?}, direction={:?}",
-            from,
-            to,
-            direction
+            "move character from {from:?} to {to:?}, direction={direction:?}"
         );
 
         let (width, height) = match direction {
@@ -746,7 +737,7 @@ impl Connection {
             3
         };
 
-        log::trace!("center = {:?}", center);
+        log::trace!("center = {center:?}");
 
         buf.write_header(direction.into(), self.protocol).await?;
         buf.write_all(
@@ -822,7 +813,7 @@ impl Connection {
 pub async fn prepare_character_list(server_address: SocketAddr) -> Result<Vec<u8>> {
     match server_address {
         SocketAddr::V4(server_address) => {
-            log::trace!("Local Address = {:?}", server_address);
+            log::trace!("Local Address = {server_address:?}");
 
             let ip = server_address.ip();
             let port = server_address.port();

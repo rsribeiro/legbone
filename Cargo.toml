@@ -7,7 +7,7 @@ rust-version = "1.85"
 
 [dependencies]
 log = "0.4"
-env_logger = "0.11"
+log4rs = { version = "1.3", default-features = false, features = ["file_appender", "console_appender", "threshold_filter"] }
 num_enum = "0.7"
 crossbeam-queue = "0.3"
 anyhow = "1.0"

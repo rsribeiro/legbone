@@ -20,6 +20,20 @@ use tokio_stream::{
     StreamExt,
     wrappers::TcpListenerStream
 };
+use log::LevelFilter;
+use log4rs::{
+    append::console::{
+        ConsoleAppender,
+        Target
+    },
+    config::{
+        Appender,
+        Config,
+        Root
+    },
+    encode::pattern::PatternEncoder,
+    filter::threshold::ThresholdFilter,
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -33,11 +47,39 @@ async fn main() -> Result<()> {
         _ => log::LevelFilter::Trace,
     };
 
-    env_logger::Builder::new()
-        .filter(None, log::LevelFilter::Info)
-        .filter(Some("legbone"), log_level)
-        .filter(Some("polling"), log::LevelFilter::Error)
-        .init();
+    // Build a stdout logger.
+    let stdout = ConsoleAppender::builder()
+        .encoder(Box::new(PatternEncoder::new("[{h({l}):<5.5}] {m}{n}")))
+        .target(Target::Stdout)
+        .build();
+
+    // Build file logger
+    let logfile = log4rs::append::file::FileAppender::builder()
+        .encoder(Box::new(PatternEncoder::new("{M} [{h({l}):<5.5}] {m}{n}")))
+        .append(false)
+        .build("log.log")?;
+
+    // Log Trace level output to file where trace is the default level
+    // and the programmatically specified level to stdout
+    let log_config = Config::builder()
+        .appender(Appender::builder().build("file", Box::new(logfile)))
+        .appender(
+            Appender::builder()
+                .filter(Box::new(ThresholdFilter::new(log_level)))
+                .build("stdout", Box::new(stdout)),
+        )
+        .build(
+            Root::builder()
+                .appender("file")
+                .appender("stdout")
+                .build(LevelFilter::Trace),
+        )?;
+
+    // Use this to change log levels at runtime
+    // This means you can change the default log level to trace
+    // if you are trying to debug an issue and need more logs on then turn it off
+    // once you are done
+    let _handle = log4rs::init_config(log_config)?;
 
     log::info!("log level = {log_level:?}");
     log::info!("config = {config:?}");

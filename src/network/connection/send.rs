@@ -12,16 +12,18 @@ use crate::{
     Protocol,
 };
 use anyhow::{anyhow, Error, Result};
-use async_std::{io::Cursor, net::SocketAddr, prelude::*};
-use crate::io::byteorder_async::AsyncWriteByteOrder;
-use byteorder::LE;
+use std::{
+    io::Cursor,
+    net::SocketAddr
+};
+use tokio::io::AsyncWriteExt;
 
 impl Connection {
     async fn send_message(&mut self, message: &[u8]) -> Result<()> {
         self.stream
-            .write_u16::<LE>(message.len() as u16 + 2)
+            .write_u16_le(message.len() as u16 + 2)
             .await?;
-        self.stream.write(message).await?;
+        self.stream.write_all(message).await?;
         self.stream.flush().await?;
 
         // log::trace!("SENDING: {:02x?} (len={})", message, message.len());
@@ -47,14 +49,14 @@ impl Connection {
         let mut big_message = Cursor::new(Vec::<u8>::new());
         while let Some(message) = self.message_queue.pop() {
             big_message
-                .write_u16::<LE>(message.len() as u16 + 2)
+                .write_u16_le(message.len() as u16 + 2)
                 .await?;
             big_message.write_all(&message).await?;
             log::trace!("SENDING: {:02x?} (len={})", message, message.len());
         }
 
         let message = big_message.into_inner();
-        self.stream.write(&message).await?;
+        self.stream.write_all(&message).await?;
         self.stream.flush().await?;
 
         // log::trace!("SENDING: {:02x?} (len={})", message, message.len());
@@ -109,7 +111,7 @@ impl Connection {
 
         buf.write_header(HeaderSend::Login, self.protocol).await?;
         if self.protocol >= Protocol::Tibia300 {
-            buf.write_u32::<LE>(self.player.id).await?;
+            buf.write_u32_le(self.player.id).await?;
         }
 
         Ok(buf.into_inner())
@@ -236,7 +238,7 @@ impl Connection {
         } else {
             buf.write_header(HeaderSend::UpdateCharacter, self.protocol)
                 .await?;
-            buf.write_u32::<LE>(id).await?;
+            buf.write_u32_le(id).await?;
             buf.write_u8(CharacterUpdateType::Outfit as u8).await?;
             buf.write_u8(outfit as u8).await?;
             buf.write_outfit_colors(outfit_colors).await?;
@@ -255,7 +257,7 @@ impl Connection {
 
         buf.write_header(HeaderSend::UpdateCharacter, self.protocol)
             .await?;
-        buf.write_u32::<LE>(id).await?;
+        buf.write_u32_le(id).await?;
         buf.write_u8(update_type as u8).await?;
         buf.write_u8(value).await?;
 
@@ -413,21 +415,21 @@ impl Connection {
         if let Some(tile) = MAP.get().unwrap().get_tile_objects(position) {
             for tile_object in tile {
                 match tile_object {
-                    TileObject::Other(tile_id) => buf.write_u16::<LE>(*tile_id).await?,
+                    TileObject::Other(tile_id) => buf.write_u16_le(*tile_id).await?,
                     TileObject::FluidContainer(tile_id, fluid) => {
-                        buf.write_u16::<LE>(*tile_id).await?;
+                        buf.write_u16_le(*tile_id).await?;
                         if self.protocol >= Protocol::Tibia300 {
                             buf.write_u8(*fluid as u8).await?;
                         }
                     }
                     TileObject::LightSource(tile_id, light_level) => {
-                        buf.write_u16::<LE>(*tile_id).await?;
+                        buf.write_u16_le(*tile_id).await?;
                         if self.protocol >= Protocol::Tibia300 {
                             buf.write_u8(*light_level).await?;
                         }
                     }
                     TileObject::Stackable(tile_id, count) => {
-                        buf.write_u16::<LE>(*tile_id).await?;
+                        buf.write_u16_le(*tile_id).await?;
                         if self.protocol >= Protocol::Tibia300 {
                             buf.write_u8(*count).await?;
                         }
@@ -475,8 +477,8 @@ impl Connection {
         let mut buf = Cursor::new(Vec::<u8>::new());
 
         buf.write_u8(AuxiliaryHeaderSend::Character as u8).await?;
-        buf.write_u32::<LE>(0).await?; //knows creature
-        buf.write_u32::<LE>(id).await?;
+        buf.write_u32_le(0).await?; //knows creature
+        buf.write_u32_le(id).await?;
         buf.write_string_with_fixed_length(name, 30).await?;
         buf.write_u8(HealthStatus::Healthy as u8).await?;
         buf.write_u8(Direction::South as u8).await?;
@@ -510,7 +512,7 @@ impl Connection {
         buf.write_header(HeaderSend::MessageOfTheDay, self.protocol)
             .await?;
         if self.protocol > Protocol::Tibia400 {
-            buf.write_u16::<LE>(message_number).await?;
+            buf.write_u16_le(message_number).await?;
             buf.write_u8(0x0a).await?;
         }
 
@@ -530,11 +532,11 @@ impl Connection {
         buf.write_header(HeaderSend::EquippedItem, self.protocol)
             .await?;
         if self.protocol == Protocol::Tibia103 {
-            buf.write_u16::<LE>(item).await?;
+            buf.write_u16_le(item).await?;
             buf.write_u8(slot as u8).await?;
         } else {
             buf.write_u8(slot as u8).await?;
-            buf.write_u16::<LE>(item).await?;
+            buf.write_u16_le(item).await?;
             buf.write_u8(stack).await?;
         }
 
@@ -547,19 +549,19 @@ impl Connection {
         let stats = self.player.stats;
         buf.write_header(HeaderSend::Stats, self.protocol).await?;
 
-        buf.write_u16::<LE>(stats.health_points).await?;
-        buf.write_u16::<LE>(stats.capacity).await?;
+        buf.write_u16_le(stats.health_points).await?;
+        buf.write_u16_le(stats.capacity).await?;
         if self.protocol >= Protocol::Tibia400 {
-            buf.write_u32::<LE>(stats.experience_points).await?;
+            buf.write_u32_le(stats.experience_points).await?;
             buf.write_u8(stats.experience_level).await?;
-            buf.write_u16::<LE>(stats.mana_points).await?;
+            buf.write_u16_le(stats.mana_points).await?;
             buf.write_u8(stats.magic_level).await?;
-            buf.write_u16::<LE>(stats.ammunition).await?;
+            buf.write_u16_le(stats.ammunition).await?;
         } else if self.protocol >= Protocol::Tibia300 {
             buf.write_u8(stats.intelligence).await?;
             buf.write_u8(stats.strength).await?;
             buf.write_u8(stats.dexterity).await?;
-            buf.write_u16::<LE>(stats.experience_points as u16).await?;
+            buf.write_u16_le(stats.experience_points as u16).await?;
             buf.write_u8(stats.experience_level).await?;
         }
 
@@ -614,7 +616,7 @@ impl Connection {
 
         buf.write_header(HeaderSend::UserInfo, self.protocol)
             .await?;
-        buf.write_u16::<LE>(0x1010).await?; //# of bytes to allocate for text
+        buf.write_u16_le(0x1010).await?; //# of bytes to allocate for text
         let info = &format!("INFO: name={player_name}");
         buf.write_null_terminated_string(info).await?;
 
@@ -626,7 +628,7 @@ impl Connection {
 
         buf.write_header(HeaderSend::UserList, self.protocol)
             .await?;
-        buf.write_u16::<LE>(0x1010).await?; //# of bytes to allocate for text
+        buf.write_u16_le(0x1010).await?; //# of bytes to allocate for text
 
         //for each player online
         {
@@ -671,15 +673,15 @@ impl Connection {
         buf.write_header(HeaderSend::OpenContainer, self.protocol)
             .await?;
         buf.write_u8(1).await?; //local_id
-        buf.write_u16::<LE>(0x013d).await?; //item_id
+        buf.write_u16_le(0x013d).await?; //item_id
 
         //Add each item inside container
         //TODO send non hardcoded items
         for _ in 0..5 {
-            buf.write_u16::<LE>(0x005a).await?; //item_id
+            buf.write_u16_le(0x005a).await?; //item_id
         }
 
-        buf.write_u16::<LE>(0xffff).await?;
+        buf.write_u16_le(0xffff).await?;
 
         Ok(buf.into_inner())
     }
@@ -702,7 +704,7 @@ impl Connection {
             buf.write_u8(AuxiliaryHeaderSend::ChangeDirection as u8)
                 .await?;
             buf.write_u8(direction as u8).await?;
-            buf.write_u32::<LE>(id).await?;
+            buf.write_u32_le(id).await?;
         }
 
         Ok(buf.into_inner())
@@ -830,7 +832,7 @@ pub async fn prepare_character_list(server_address: SocketAddr) -> Result<Vec<u8
                 for &octet in ip.octets().iter() {
                     buf.write_u8(octet).await?;
                 }
-                buf.write_u16::<LE>(port).await?;
+                buf.write_u16_le(port).await?;
             }
 
             Ok(buf.into_inner())

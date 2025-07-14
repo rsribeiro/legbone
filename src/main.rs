@@ -1,8 +1,8 @@
 use anyhow::Result;
-use async_std::{
-    net::{SocketAddr, TcpListener},
-    prelude::*,
+use tokio::{
+    net::TcpListener,
     task,
+    sync::RwLock
 };
 use clap::Parser;
 use legbone::{
@@ -12,14 +12,17 @@ use legbone::{
     Opts,
 };
 use std::{
-    sync::{
-        Arc,
-        RwLock
-    },
+    net::SocketAddr,
+    sync::Arc,
     path::Path
 };
+use tokio_stream::{
+    StreamExt,
+    wrappers::TcpListenerStream
+};
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
     config::init(Path::new("server.toml"))?;
     let config = config::CONFIG.get().unwrap();
@@ -33,7 +36,6 @@ fn main() -> Result<()> {
     env_logger::Builder::new()
         .filter(None, log::LevelFilter::Info)
         .filter(Some("legbone"), log_level)
-        .filter(Some("async_std"), log::LevelFilter::Error)
         .filter(Some("polling"), log::LevelFilter::Error)
         .init();
 
@@ -51,7 +53,10 @@ fn main() -> Result<()> {
         day_night_cycle_enabled: config.world.day_night_cycle,
     };
 
-    task::block_on(game_loop(world, socket_addr, world_options))
+    let handle = task::spawn(game_loop(world, socket_addr, world_options));
+
+    handle.await.expect("game loop task join")?;
+    Ok(())
 }
 
 async fn game_loop(
@@ -59,16 +64,15 @@ async fn game_loop(
     socket_addr: SocketAddr,
     world_options: WorldOptions,
 ) -> Result<()> {
-    let listener = TcpListener::bind(socket_addr).await?;
+    let mut listener = TcpListenerStream::new(TcpListener::bind(socket_addr).await?);
     log::info!("Server listening on address {socket_addr}");
 
     let sender = {
         World::init_loop(&world, world_options);
-        world.read().unwrap().sender()
+        world.read().await.sender()
     };
 
-    let mut incoming = listener.incoming();
-    while let Some(stream) = incoming.next().await {
+    while let Some(stream) =  listener.next().await {
         let stream = stream?;
 
         let sender_clone = sender.clone();
@@ -89,5 +93,6 @@ async fn game_loop(
             }
         });
     }
+
     Ok(())
 }

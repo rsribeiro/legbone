@@ -1,20 +1,18 @@
-pub mod byteorder_async;
-
 use crate::{
     character::Gender, character::OutfitColors, map::position::Position,
     network::header::HeaderSend, Protocol,
 };
 use anyhow::Result;
-use async_std::{
-    io::{Read, Write},
-    prelude::*,
+use tokio::io::{
+    AsyncRead,
+    AsyncWrite,
+    AsyncReadExt,
+    AsyncWriteExt
 };
-use byteorder_async::{AsyncReadByteOrder, AsyncWriteByteOrder};
-use byteorder::LE;
 
-impl<R: Read + Unpin> ReadExt for R {}
+impl<R: AsyncRead + Unpin> ReadExt for R {}
 
-pub trait ReadExt: Read + Unpin + Sized {
+pub trait ReadExt: AsyncRead + Unpin + Sized {
     async fn read_gender(&mut self, protocol: Protocol) -> Result<Gender> {
         let gender = match self.read_u8().await? {
             1 => Gender::Male,
@@ -59,8 +57,8 @@ pub trait ReadExt: Read + Unpin + Sized {
 
             Position::new(x as u16, y as u16, 7)
         } else {
-            let x = self.read_u16::<LE>().await?;
-            let y = self.read_u16::<LE>().await?;
+            let x = self.read_u16_le().await?;
+            let y = self.read_u16_le().await?;
             let z = self.read_u8().await?;
 
             Position::new(x, y, z)
@@ -104,10 +102,10 @@ pub trait ReadExt: Read + Unpin + Sized {
     }
 }
 
-impl<W: Write + Unpin> WriteExt for W {}
+impl<W: AsyncWrite + Unpin> WriteExt for W {}
 
 #[allow(unused)]
-pub trait WriteExt: Write + Unpin + Sized {
+pub trait WriteExt: AsyncWrite + Unpin + Sized {
     async fn write_outfit_colors(&mut self, outfit: OutfitColors) -> Result<()> {
         self.write_u4(outfit.legs, outfit.shoes).await?;
         self.write_u4(outfit.head, outfit.body).await?;
@@ -146,7 +144,7 @@ pub trait WriteExt: Write + Unpin + Sized {
     /// Client 1.03 seems to need 4 bytes before header. Meaning of bytes unknown
     async fn write_header(&mut self, header: HeaderSend, protocol: Protocol) -> Result<()> {
         if protocol > Protocol::Tibia400 {
-            self.write_u16::<LE>(header as u16).await?;
+            self.write_u16_le(header as u16).await?;
         } else {
             if protocol == Protocol::Tibia103 {
                 self.write_zeroes(4).await?;
@@ -161,8 +159,8 @@ pub trait WriteExt: Write + Unpin + Sized {
             self.write_u8(position.x as u8).await?;
             self.write_u8(position.y as u8).await?;
         } else {
-            self.write_u16::<LE>(position.x).await?;
-            self.write_u16::<LE>(position.y).await?;
+            self.write_u16_le(position.x).await?;
+            self.write_u16_le(position.y).await?;
             self.write_u8(position.z).await?;
         }
 
@@ -170,7 +168,7 @@ pub trait WriteExt: Write + Unpin + Sized {
     }
 
     async fn write_length_and_string(&mut self, string: &str) -> Result<()> {
-        self.write_u16::<LE>(string.len() as u16).await?;
+        self.write_u16_le(string.len() as u16).await?;
         self.write_all(string.as_bytes()).await?;
         Ok(())
     }
@@ -206,9 +204,9 @@ pub trait WriteExt: Write + Unpin + Sized {
 #[allow(non_snake_case)]
 mod tests {
     use super::*;
-    use async_std::io::Cursor;
+    use std::io::Cursor;
 
-    #[async_std::test]
+    #[tokio::test]
     async fn test_read_write_gender() -> Result<()> {
         let gender_before = Gender::Female;
 
@@ -223,7 +221,7 @@ mod tests {
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn test_read_write_outfit_colors() -> Result<()> {
         let outfit_before = OutfitColors::new_with_unknown_byte(1, 2, 3, 4, 5);
 
@@ -238,7 +236,7 @@ mod tests {
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn test_read_write_position() -> Result<()> {
         let position_before = Position::new(1, 2, 3);
         let protocol = Protocol::Tibia650;
@@ -254,7 +252,7 @@ mod tests {
         Ok(())
     }
 
-    #[async_std::test]
+    #[tokio::test]
     async fn test_read_write_u4() -> Result<()> {
         let high_before = 1;
         let low_before = 2;

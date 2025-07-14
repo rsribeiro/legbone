@@ -1,17 +1,27 @@
-use async_std::{prelude::*, stream, task};
-use flume::{unbounded, Receiver, Sender};
+use tokio::{
+    task,
+    time::interval,
+    sync::{
+        RwLock,
+        mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender}
+    }
+};
+use tokio_stream::{
+    StreamExt,
+    wrappers::IntervalStream
+};
 use message::{PlayerToWorldMessage, WorldToPlayerMessage};
 use std::{
     collections::BTreeMap,
-    sync::{Arc, RwLock},
+    sync::Arc,
     time::Duration,
 };
 
 pub mod message;
 
 pub struct World {
-    sender: Sender<PlayerToWorldMessage>,
-    receiver: Receiver<PlayerToWorldMessage>,
+    sender: UnboundedSender<PlayerToWorldMessage>,
+    receiver: UnboundedReceiver<PlayerToWorldMessage>,
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -21,12 +31,12 @@ pub struct WorldOptions {
 
 impl World {
     pub fn new() -> Arc<RwLock<World>> {
-        let (sender, receiver) = unbounded();
+        let (sender, receiver) = unbounded_channel();
 
         Arc::new(RwLock::new(World { sender, receiver }))
     }
 
-    pub fn sender(&self) -> Sender<PlayerToWorldMessage> {
+    pub fn sender(&self) -> UnboundedSender<PlayerToWorldMessage> {
         self.sender.clone()
     }
 
@@ -38,24 +48,24 @@ impl World {
 
     async fn message_loop(
         world: Arc<RwLock<World>>,
-        senders: Arc<RwLock<BTreeMap<u32, Sender<WorldToPlayerMessage>>>>,
+        senders: Arc<RwLock<BTreeMap<u32, UnboundedSender<WorldToPlayerMessage>>>>,
     ) {
         loop {
-            match world.read().unwrap().receiver.recv() {
-                Ok(message) => match message {
+            let receiver = &mut world.write().await.receiver;
+            if let Some(message) = receiver.recv().await {
+                match message {
                     PlayerToWorldMessage::LoadPlayer(player_id, sender) => {
                         log::debug!("Load player {player_id}");
-                        senders.write().unwrap().insert(player_id, sender);
+                        senders.write().await.insert(player_id, sender);
                     }
                     PlayerToWorldMessage::UnloadPlayer(player_id) => {
                         log::debug!("Unload player {player_id}");
-                        senders.write().unwrap().remove(&player_id);
+                        senders.write().await.remove(&player_id);
                     }
                     PlayerToWorldMessage::Walk(player_id) => {
                         log::trace!("Received player {player_id} walk")
                     }
-                },
-                Err(err) => log::error!("{err}"),
+                }
             }
         }
     }
@@ -63,16 +73,16 @@ impl World {
     async fn world_loop(
         _world: Arc<RwLock<World>>,
         world_options: WorldOptions,
-        senders: Arc<RwLock<BTreeMap<u32, Sender<WorldToPlayerMessage>>>>,
+        senders: Arc<RwLock<BTreeMap<u32, UnboundedSender<WorldToPlayerMessage>>>>,
     ) {
         let mut hour = 0;
-        let mut interval = stream::interval(Duration::from_secs(3));
-        while interval.next().await.is_some() {
+        let mut interval = IntervalStream::new(interval(Duration::from_secs(3)));
+        while let Some(_instant) =  interval.next().await {
             hour = if hour >= 23 { 0 } else { hour + 1 };
             let light_level = Self::hour_to_light_level(hour);
 
             // log::trace!("Hour: {}, light_level: {}", hour, light_level);
-            for (_player_id, sender) in senders.read().unwrap().iter() {
+            for (_player_id, sender) in senders.read().await.iter() {
                 if world_options.day_night_cycle_enabled {
                     let _ = sender.send(WorldToPlayerMessage::WorldLight(light_level));
                 }
@@ -92,3 +102,4 @@ impl World {
         }
     }
 }
+

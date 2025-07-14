@@ -10,11 +10,16 @@ use crate::{
     Protocol,
 };
 use anyhow::{anyhow, Result};
-use async_std::{io, net::TcpStream, prelude::*};
-use crate::io::byteorder_async::{AsyncReadByteOrder, AsyncWriteByteOrder};
-use byteorder::LE;
 use crossbeam_queue::SegQueue;
-use flume::{unbounded, Receiver, Sender};
+use tokio::{
+    net::TcpStream,
+    time::timeout,
+    sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+    io::{
+        AsyncReadExt,
+        AsyncWriteExt
+    }
+};
 use std::{convert::TryInto, time::Duration};
 
 pub struct Connection {
@@ -23,8 +28,8 @@ pub struct Connection {
     player_id: u32,
     protocol: Protocol,
     message_queue: SegQueue<Vec<u8>>,
-    sender: Sender<PlayerToWorldMessage>,
-    receiver: Receiver<WorldToPlayerMessage>,
+    sender: UnboundedSender<PlayerToWorldMessage>,
+    receiver: UnboundedReceiver<WorldToPlayerMessage>,
 }
 
 impl Connection {
@@ -32,8 +37,8 @@ impl Connection {
         stream: TcpStream,
         protocol: Protocol,
         player: Player,
-        sender: Sender<PlayerToWorldMessage>,
-        receiver: Receiver<WorldToPlayerMessage>,
+        sender: UnboundedSender<PlayerToWorldMessage>,
+        receiver: UnboundedReceiver<WorldToPlayerMessage>,
     ) -> Self {
         let player_id = player.id;
         Self {
@@ -49,9 +54,9 @@ impl Connection {
 
     pub async fn handle_login(
         mut stream: TcpStream,
-        sender: Sender<PlayerToWorldMessage>,
+        sender: UnboundedSender<PlayerToWorldMessage>,
     ) -> Result<Option<Connection>> {
-        let length = stream.read_u16::<LE>().await?;
+        let length = stream.read_u16_le().await?;
         log::trace!("handle_login: length={length}");
 
         let (player, protocol) = match length {
@@ -61,12 +66,9 @@ impl Connection {
         };
 
         if let Some(player) = player {
-            let (game_sender, receiver) = unbounded();
+            let (game_sender, receiver) = unbounded_channel();
 
-            sender
-                .send_async(PlayerToWorldMessage::LoadPlayer(player.id, game_sender))
-                .await
-                .unwrap();
+            sender.send(PlayerToWorldMessage::LoadPlayer(player.id, game_sender))?;
 
             log::info!(
                 "Player logged in: protocol={:?}, id={}, name={}, ",
@@ -91,7 +93,7 @@ async fn player_login(stream: &mut TcpStream) -> Result<(Option<Player>, Protoco
     //650  = N/A
     stream.skip(5).await?;
 
-    let protocol: Protocol = stream.read_u16::<LE>().await?.try_into()?;
+    let protocol: Protocol = stream.read_u16_le().await?.try_into()?;
 
     let mut name = String::new();
     stream.read_string(&mut name, 30).await?;
@@ -112,7 +114,7 @@ async fn create_new_player(stream: &mut TcpStream) -> Result<(Option<Player>, Pr
     //640+ = N/A
     stream.skip(5).await?;
 
-    let protocol: Protocol = stream.read_u16::<LE>().await?.try_into()?;
+    let protocol: Protocol = stream.read_u16_le().await?.try_into()?;
 
     let mut name = String::new();
     stream.read_string(&mut name, 30).await?;
@@ -166,11 +168,11 @@ async fn account_login(
     //650  = 01, 01, 00
     stream.skip(3).await?;
 
-    let protocol: Protocol = stream.read_u16::<LE>().await?.try_into()?;
+    let protocol: Protocol = stream.read_u16_le().await?.try_into()?;
 
     if protocol >= Protocol::Tibia650 {
-        let account_number = stream.read_u32::<LE>().await?;
-        let password_length = stream.read_u16::<LE>().await?;
+        let account_number = stream.read_u32_le().await?;
+        let password_length = stream.read_u16_le().await?;
 
         let mut password = String::new();
         stream.read_string(&mut password, password_length).await?;
@@ -179,20 +181,25 @@ async fn account_login(
         log::trace!("Journey Onward! Account number={account_number}, password={password}, protocol={protocol:?}");
 
         let msg = send::prepare_character_list(local_addr).await?;
-        stream.write_u16::<LE>(msg.len() as u16).await?;
+        stream.write_u16_le(msg.len() as u16).await?;
         stream.write_all(&msg).await?;
         stream.flush().await?;
 
         //Awaits connection be terminated by client, which will connect again using the chosen character
         loop {
-            match io::timeout(Duration::from_secs(1), stream.flush()).await {
-                Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => {
-                    log::info!("Client disconnected after receiving character list.");
-                    break;
+            match timeout(Duration::from_secs(1), stream.flush()).await {
+                Err(_elapsed) => { /* Do nothing */ }
+                Ok(inner) => {
+                    match inner {
+                        Ok(_) => { /* Do nothing */ },
+                        Err(err) if err.kind() == std::io::ErrorKind::TimedOut => { /* Do nothing */ },
+                        Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => {
+                            log::info!("Client disconnected after receiving character list.");
+                            break;
+                        },
+                        Err(err) => return Err(err.into()),
+                    }
                 }
-                Err(err) if err.kind() == std::io::ErrorKind::TimedOut => { /* Do nothing */ }
-                Ok(_) => { /* Do nothing */ }
-                Err(err) => return Err(err.into()),
             }
         }
 

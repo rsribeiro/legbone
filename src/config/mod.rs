@@ -1,6 +1,6 @@
 use crate::map::MapType;
 use anyhow::{Result, anyhow};
-use async_std::net::Ipv4Addr;
+use std::net::Ipv4Addr;
 use std::{
     sync::OnceLock,
     path::Path

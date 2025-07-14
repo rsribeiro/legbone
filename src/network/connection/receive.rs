@@ -10,100 +10,100 @@ use crate::{
     Protocol,
 };
 use anyhow::Result;
-use async_std::{
-    io::{self, Cursor},
-    prelude::*,
+use std::{convert::TryInto, time::Duration, io::Cursor};
+use tokio::{
+    time::timeout,
+    io::AsyncReadExt
 };
-use crate::io::byteorder_async::AsyncReadByteOrder;
-use byteorder::LE;
-use std::{convert::TryInto, time::Duration};
 
 impl Connection {
     pub async fn handle_connection(&mut self) -> Result<()> {
         loop {
             //TODO use non blocking io instead of timeout
-            match io::timeout(Duration::from_millis(100), self.stream.read_u16::<LE>()).await {
-                Ok(length) => {
-                    let mut message = vec![0_u8; length as usize];
-                    self.stream.read_exact(&mut message).await?;
-                    log::trace!(
-                        "Message received: length={length}, bytes={message:02x?}"
-                    );
+            match timeout(Duration::from_millis(100), self.stream.read_u16_le()).await {
+                Ok(inner) => {
+                    match inner {
+                        Ok(length) => {
+                            let mut message = vec![0_u8; length as usize];
+                            self.stream.read_exact(&mut message).await?;
+                            log::trace!(
+                                "Message received: length={length}, bytes={message:02x?}"
+                            );
 
-                    let mut message = Cursor::new(message);
+                            let mut message = Cursor::new(message);
 
-                    match message.read_u16::<LE>().await?.try_into() {
-                        Ok(header) => {
-                            log::trace!("Message received from client: {header:?}");
-                            match header {
-                                HeaderReceive::PlayerInfo => {
-                                    self.receive_player_info(&mut message).await?
+                            match message.read_u16_le().await?.try_into() {
+                                Ok(header) => {
+                                    log::trace!("Message received from client: {header:?}");
+                                    match header {
+                                        HeaderReceive::PlayerInfo => {
+                                            self.receive_player_info(&mut message).await?
+                                        }
+                                        HeaderReceive::UserList => {
+                                            self.receive_user_list(&mut message).await?
+                                        }
+                                        HeaderReceive::Walk => self.receive_walk(&mut message).await?,
+                                        HeaderReceive::AutoWalk => {
+                                            self.receive_auto_walk(&mut message).await?
+                                        }
+                                        HeaderReceive::LookAt => self.receive_look_at(&mut message).await?,
+                                        HeaderReceive::Chat => self.receive_chat(&mut message).await?,
+                                        HeaderReceive::ChangeDirection => {
+                                            self.receive_change_direction(&mut message).await?
+                                        }
+                                        HeaderReceive::Comment => {
+                                            self.receive_comment(&mut message).await?
+                                        }
+                                        HeaderReceive::Push => self.receive_push(&mut message).await?,
+                                        HeaderReceive::UseItem => {
+                                            self.receive_use_item(&mut message).await?
+                                        }
+                                        HeaderReceive::CloseContainer => {
+                                            self.receive_close_container(&mut message).await?
+                                        }
+                                        HeaderReceive::RequestChangeData => {
+                                            self.receive_change_data(&mut message).await?
+                                        }
+                                        HeaderReceive::SetData => {
+                                            self.receive_set_data(&mut message).await?
+                                        }
+                                        HeaderReceive::SetText => {
+                                            self.receive_set_text(&mut message).await?
+                                        }
+                                        HeaderReceive::HouseText => {
+                                            self.receive_house_text(&mut message).await?
+                                        }
+                                        HeaderReceive::ChangeMode => {
+                                            self.receive_change_mode(&mut message).await?
+                                        }
+                                        HeaderReceive::ExitBattle => {
+                                            self.receive_exit_battle(&mut message).await?
+                                        }
+                                        HeaderReceive::SetTarget => {
+                                            self.receive_set_target(&mut message).await?
+                                        }
+                                        HeaderReceive::Echo => {}
+                                        HeaderReceive::Logout => {
+                                            self.sender
+                                                .send(PlayerToWorldMessage::UnloadPlayer(self.player_id))?;
+                                            break;
+                                        }
+                                    }
                                 }
-                                HeaderReceive::UserList => {
-                                    self.receive_user_list(&mut message).await?
-                                }
-                                HeaderReceive::Walk => self.receive_walk(&mut message).await?,
-                                HeaderReceive::AutoWalk => {
-                                    self.receive_auto_walk(&mut message).await?
-                                }
-                                HeaderReceive::LookAt => self.receive_look_at(&mut message).await?,
-                                HeaderReceive::Chat => self.receive_chat(&mut message).await?,
-                                HeaderReceive::ChangeDirection => {
-                                    self.receive_change_direction(&mut message).await?
-                                }
-                                HeaderReceive::Comment => {
-                                    self.receive_comment(&mut message).await?
-                                }
-                                HeaderReceive::Push => self.receive_push(&mut message).await?,
-                                HeaderReceive::UseItem => {
-                                    self.receive_use_item(&mut message).await?
-                                }
-                                HeaderReceive::CloseContainer => {
-                                    self.receive_close_container(&mut message).await?
-                                }
-                                HeaderReceive::RequestChangeData => {
-                                    self.receive_change_data(&mut message).await?
-                                }
-                                HeaderReceive::SetData => {
-                                    self.receive_set_data(&mut message).await?
-                                }
-                                HeaderReceive::SetText => {
-                                    self.receive_set_text(&mut message).await?
-                                }
-                                HeaderReceive::HouseText => {
-                                    self.receive_house_text(&mut message).await?
-                                }
-                                HeaderReceive::ChangeMode => {
-                                    self.receive_change_mode(&mut message).await?
-                                }
-                                HeaderReceive::ExitBattle => {
-                                    self.receive_exit_battle(&mut message).await?
-                                }
-                                HeaderReceive::SetTarget => {
-                                    self.receive_set_target(&mut message).await?
-                                }
-                                HeaderReceive::Echo => {}
-                                HeaderReceive::Logout => {
-                                    self.sender
-                                        .send_async(PlayerToWorldMessage::UnloadPlayer(
-                                            self.player_id,
-                                        ))
-                                        .await?;
-                                    break;
+                                Err(err) => {
+                                    log::error!("Error reading header: {err:?}");
                                 }
                             }
+                        },
+                        Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => {
+                            log::info!("Client disconnected.");
+                            break;
                         }
-                        Err(err) => {
-                            log::error!("Error reading header: {err:?}");
-                        }
+                        Err(err) if err.kind() == std::io::ErrorKind::TimedOut => { /* do nothing */ },
+                        Err(err) => return Err(err.into()),
                     }
                 }
-                Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => {
-                    log::info!("Client disconnected.");
-                    break;
-                }
-                Err(err) if err.kind() == std::io::ErrorKind::TimedOut => { /* do nothing */ }
-                Err(err) => return Err(err.into()),
+                Err(_elapsed) => { /* do nothing */ }
             };
 
             if self.protocol >= Protocol::Tibia300 {
@@ -166,14 +166,14 @@ impl Connection {
         let (position_from, object_id, stack_pos, position_to, count) =
             if self.protocol == Protocol::Tibia103 {
                 let position_from = message.read_position(self.protocol).await?;
-                let object_id = message.read_u16::<LE>().await?;
+                let object_id = message.read_u16_le().await?;
                 let stack_pos = message.read_u8().await?;
                 let position_to = message.read_position(self.protocol).await?;
 
                 (position_from, object_id, stack_pos, position_to, None)
             } else {
                 let position_from = message.read_position(self.protocol).await?;
-                let object_id = message.read_u16::<LE>().await?;
+                let object_id = message.read_u16_le().await?;
                 let stack_pos = message.read_u8().await?;
                 let position_to = message.read_position(self.protocol).await?;
                 let count = message.read_u8().await?;
@@ -266,7 +266,7 @@ impl Connection {
     }
 
     async fn receive_set_target(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
-        let target_id = message.read_u32::<LE>().await?;
+        let target_id = message.read_u32_le().await?;
         log::trace!("Set target, id={target_id}");
 
         Ok(())
@@ -275,7 +275,7 @@ impl Connection {
     async fn receive_use_item(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
         let item_type = message.read_u8().await?; //1 = regular, 2 = usable with
         let pos = message.read_position(self.protocol).await?;
-        let item_id = message.read_u16::<LE>().await?;
+        let item_id = message.read_u16_le().await?;
         let stack_pos = message.read_u8().await?;
         let unknown = message.read_u8().await?;
 
@@ -356,9 +356,7 @@ impl Connection {
         let direction: Direction = message.read_u8().await?.try_into()?;
         log::trace!("Walk 1 tile {direction:?}");
 
-        self.sender
-            .send_async(PlayerToWorldMessage::Walk(self.player.id))
-            .await?;
+        self.sender.send(PlayerToWorldMessage::Walk(self.player.id))?;
 
         let old_position = self.player.position;
         let new_position = self.player.position + direction;
@@ -401,7 +399,7 @@ impl Connection {
     }
 
     async fn receive_chat(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
-        let length = message.read_u16::<LE>().await?;
+        let length = message.read_u16_le().await?;
         let config = crate::config::CONFIG.get().unwrap();
 
         let mut raw_msg = vec![0_u8; length as usize];

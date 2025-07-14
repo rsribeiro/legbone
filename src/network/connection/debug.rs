@@ -8,8 +8,8 @@ use crate::{
     Protocol,
 };
 use anyhow::Result;
-use async_std::io::Cursor;
 use std::{
+    io::Cursor,
     convert::TryInto,
     sync::atomic::{AtomicU16, AtomicU8, Ordering},
 };

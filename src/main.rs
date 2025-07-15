@@ -119,7 +119,7 @@ async fn game_loop(
 
         let sender_clone = sender.clone();
 
-        let _handle = task::spawn(async move {
+        let _handle = task::spawn(async {
             log::info!("New connection: {}", stream.peer_addr().unwrap());
             match Connection::handle_login(stream, sender_clone).await {
                 Ok(connection) => {

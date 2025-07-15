@@ -7,7 +7,10 @@ use crate::{
     network::header::HeaderSend,
     Protocol,
 };
-use anyhow::Result;
+use anyhow::{
+    Result,
+    anyhow
+};
 use std::{
     io::Cursor,
     convert::TryInto,
@@ -25,7 +28,7 @@ impl Connection {
     }
 
     #[allow(clippy::unit_arg)]
-    async fn debug_command(&self, command: &str, args: Vec<&str>) -> Result<()> {
+    async fn debug_command(&mut self, command: &str, args: Vec<&str>) -> Result<()> {
         log::debug!("Received debug command {command:?}");
         match command {
             "chars" => self.command_chars().await,
@@ -56,7 +59,8 @@ impl Connection {
             "info" => Ok(self
                 .queue_message(self.prepare_info(&args.join(" ")).await?)
                 .await),
-            "error" => Ok(self
+            "error" => self.send_error(anyhow!(args.join(" "))).await,
+            "error2" => Ok(self
                 .queue_message(self.prepare_error(&args.join(" ")).await?)
                 .await),
             "motd" => self.command_motd(args).await,

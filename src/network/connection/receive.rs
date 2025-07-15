@@ -10,10 +10,17 @@ use crate::{
     Protocol,
 };
 use anyhow::Result;
-use std::{convert::TryInto, time::Duration, io::Cursor};
+use std::{
+    convert::TryInto,
+    io::Cursor,
+    time::Duration
+};
 use tokio::{
+    io::{
+        AsyncReadExt,
+        AsyncRead
+    },
     time::timeout,
-    io::AsyncReadExt
 };
 
 impl Connection {
@@ -21,88 +28,22 @@ impl Connection {
         loop {
             //TODO use non blocking io instead of timeout
             match timeout(Duration::from_millis(100), self.stream.read_u16_le()).await {
-                Ok(inner) => {
-                    match inner {
-                        Ok(length) => {
-                            let mut message = vec![0_u8; length as usize];
-                            self.stream.read_exact(&mut message).await?;
-                            log::trace!(
-                                "Message received: length={length}, bytes={message:02x?}"
-                            );
+                Ok(Ok(length)) => {
+                    let mut message = vec![0_u8; length as usize];
+                    self.stream.read_exact(&mut message).await?;
+                    log::trace!("Message received: length={length}, bytes={message:02x?}");
 
-                            let mut message = Cursor::new(message);
-
-                            match message.read_u16_le().await?.try_into() {
-                                Ok(header) => {
-                                    log::trace!("Message received from client: {header:?}");
-                                    match header {
-                                        HeaderReceive::PlayerInfo => {
-                                            self.receive_player_info(&mut message).await?
-                                        }
-                                        HeaderReceive::UserList => {
-                                            self.receive_user_list(&mut message).await?
-                                        }
-                                        HeaderReceive::Walk => self.receive_walk(&mut message).await?,
-                                        HeaderReceive::AutoWalk => {
-                                            self.receive_auto_walk(&mut message).await?
-                                        }
-                                        HeaderReceive::LookAt => self.receive_look_at(&mut message).await?,
-                                        HeaderReceive::Chat => self.receive_chat(&mut message).await?,
-                                        HeaderReceive::ChangeDirection => {
-                                            self.receive_change_direction(&mut message).await?
-                                        }
-                                        HeaderReceive::Comment => {
-                                            self.receive_comment(&mut message).await?
-                                        }
-                                        HeaderReceive::Push => self.receive_push(&mut message).await?,
-                                        HeaderReceive::UseItem => {
-                                            self.receive_use_item(&mut message).await?
-                                        }
-                                        HeaderReceive::CloseContainer => {
-                                            self.receive_close_container(&mut message).await?
-                                        }
-                                        HeaderReceive::RequestChangeData => {
-                                            self.receive_change_data(&mut message).await?
-                                        }
-                                        HeaderReceive::SetData => {
-                                            self.receive_set_data(&mut message).await?
-                                        }
-                                        HeaderReceive::SetText => {
-                                            self.receive_set_text(&mut message).await?
-                                        }
-                                        HeaderReceive::HouseText => {
-                                            self.receive_house_text(&mut message).await?
-                                        }
-                                        HeaderReceive::ChangeMode => {
-                                            self.receive_change_mode(&mut message).await?
-                                        }
-                                        HeaderReceive::ExitBattle => {
-                                            self.receive_exit_battle(&mut message).await?
-                                        }
-                                        HeaderReceive::SetTarget => {
-                                            self.receive_set_target(&mut message).await?
-                                        }
-                                        HeaderReceive::Echo => {}
-                                        HeaderReceive::Logout => {
-                                            self.sender
-                                                .send(PlayerToWorldMessage::UnloadPlayer(self.player_id))?;
-                                            break;
-                                        }
-                                    }
-                                }
-                                Err(err) => {
-                                    log::error!("Error reading header: {err:?}");
-                                }
-                            }
-                        },
-                        Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => {
-                            log::info!("Client disconnected.");
-                            break;
-                        }
-                        Err(err) if err.kind() == std::io::ErrorKind::TimedOut => { /* do nothing */ },
-                        Err(err) => return Err(err.into()),
-                    }
-                }
+                    self.receive_message(Cursor::new(message)).await?;
+                },
+                Ok(Err(err)) if err.kind() == std::io::ErrorKind::UnexpectedEof || err.kind() == std::io::ErrorKind::ConnectionReset => {
+                    log::info!("Client disconnected ({:?})", err.kind());
+                    break;
+                },
+                Ok(Err(err)) if err.kind() == std::io::ErrorKind::TimedOut => { /* do nothing */ },
+                Ok(Err(err)) => {
+                    log::error!("Connection ended ({:?})", err.kind());
+                    return Err(err.into())
+                },
                 Err(_elapsed) => { /* do nothing */ }
             };
 
@@ -122,17 +63,83 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_set_text(&mut self, _message: &mut Cursor<Vec<u8>>) -> Result<()> {
+    async fn receive_message<R: AsyncRead + Unpin>(&mut self, mut message: R) -> Result<bool> {
+        match message.read_u16_le().await?.try_into() {
+            Ok(header) => {
+                log::trace!("Message received from client: {header:?}");
+                match header {
+                    HeaderReceive::PlayerInfo => {
+                        self.receive_player_info(&mut message).await?
+                    }
+                    HeaderReceive::UserList => {
+                        self.receive_user_list(&mut message).await?
+                    }
+                    HeaderReceive::Walk => self.receive_walk(&mut message).await?,
+                    HeaderReceive::AutoWalk => {
+                        self.receive_auto_walk(&mut message).await?
+                    }
+                    HeaderReceive::LookAt => self.receive_look_at(&mut message).await?,
+                    HeaderReceive::Chat => self.receive_chat(&mut message).await?,
+                    HeaderReceive::ChangeDirection => {
+                        self.receive_change_direction(&mut message).await?
+                    }
+                    HeaderReceive::Comment => {
+                        self.receive_comment(&mut message).await?
+                    }
+                    HeaderReceive::Push => self.receive_push(&mut message).await?,
+                    HeaderReceive::UseItem => {
+                        self.receive_use_item(&mut message).await?
+                    }
+                    HeaderReceive::CloseContainer => {
+                        self.receive_close_container(&mut message).await?
+                    }
+                    HeaderReceive::RequestChangeData => {
+                        self.receive_change_data(&mut message).await?
+                    }
+                    HeaderReceive::SetData => {
+                        self.receive_set_data(&mut message).await?
+                    }
+                    HeaderReceive::SetText => {
+                        self.receive_set_text(&mut message).await?
+                    }
+                    HeaderReceive::HouseText => {
+                        self.receive_house_text(&mut message).await?
+                    }
+                    HeaderReceive::ChangeMode => {
+                        self.receive_change_mode(&mut message).await?
+                    }
+                    HeaderReceive::ExitBattle => {
+                        self.receive_exit_battle(&mut message).await?
+                    }
+                    HeaderReceive::SetTarget => {
+                        self.receive_set_target(&mut message).await?
+                    }
+                    HeaderReceive::Echo => {}
+                    HeaderReceive::Logout => {
+                        self.sender.send(PlayerToWorldMessage::UnloadPlayer(self.player_id))?;
+                        return Ok(true);
+                    }
+                }
+            }
+            Err(err) => {
+                log::error!("Error reading header: {err:?}");
+            }
+        }
+
+        Ok(false)
+    }
+
+    async fn receive_set_text<R: AsyncRead + Unpin>(&mut self, _message: &mut R) -> Result<()> {
         log::trace!("received set_text");
         Ok(())
     }
 
-    async fn receive_house_text(&mut self, _message: &mut Cursor<Vec<u8>>) -> Result<()> {
+    async fn receive_house_text<R: AsyncRead + Unpin>(&mut self, _message: &mut R) -> Result<()> {
         log::trace!("received house_text");
         Ok(())
     }
 
-    async fn receive_change_mode(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
+    async fn receive_change_mode<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
         let fight_mode: FightMode = message.read_u8().await?.try_into()?;
         let fight_stance: FightStance = message.read_u8().await?.try_into()?;
 
@@ -143,12 +150,12 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_exit_battle(&mut self, _message: &mut Cursor<Vec<u8>>) -> Result<()> {
+    async fn receive_exit_battle<R: AsyncRead + Unpin>(&mut self, _message: &mut R) -> Result<()> {
         log::trace!("Exit battle");
         Ok(())
     }
 
-    async fn receive_player_info(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
+    async fn receive_player_info<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
         let mut player_name = String::new();
         unsafe { message.read_string_until_end(&mut player_name).await? };
         self.queue_message(self.prepare_user_info(&player_name).await?)
@@ -157,12 +164,12 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_user_list(&mut self, _message: &mut Cursor<Vec<u8>>) -> Result<()> {
+    async fn receive_user_list<R: AsyncRead + Unpin>(&mut self, _message: &mut R) -> Result<()> {
         self.queue_message(self.prepare_user_list().await?).await;
         Ok(())
     }
 
-    async fn receive_push(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
+    async fn receive_push<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
         let (position_from, object_id, stack_pos, position_to, count) =
             if self.protocol == Protocol::Tibia103 {
                 let position_from = message.read_position(self.protocol).await?;
@@ -214,7 +221,7 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_set_data(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
+    async fn receive_set_data<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
         let outfit = if self.protocol <= Protocol::Tibia501 {
             let mut password = String::new();
             message.read_string(&mut password, 30).await?;
@@ -260,19 +267,19 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_change_data(&mut self, _message: &mut Cursor<Vec<u8>>) -> Result<()> {
+    async fn receive_change_data<R: AsyncRead + Unpin>(&mut self, _message: &mut R) -> Result<()> {
         self.queue_message(self.prepare_data_window().await?).await;
         Ok(())
     }
 
-    async fn receive_set_target(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
+    async fn receive_set_target<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
         let target_id = message.read_u32_le().await?;
         log::trace!("Set target, id={target_id}");
 
         Ok(())
     }
 
-    async fn receive_use_item(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
+    async fn receive_use_item<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
         let item_type = message.read_u8().await?; //1 = regular, 2 = usable with
         let pos = message.read_position(self.protocol).await?;
         let item_id = message.read_u16_le().await?;
@@ -289,7 +296,7 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_close_container(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
+    async fn receive_close_container<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
         let local_id = message.read_u8().await?;
 
         self.queue_message(self.prepare_close_container(local_id).await?)
@@ -298,7 +305,7 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_look_at(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
+    async fn receive_look_at<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
         let position = message.read_position(self.protocol).await?;
 
         let msg = match position.get_qualifier(self.protocol)? {
@@ -328,7 +335,7 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_change_direction(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
+    async fn receive_change_direction<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
         let direction: Direction = message.read_u8().await?.try_into()?;
         log::trace!("Change direction to {direction:?}");
 
@@ -345,14 +352,14 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_auto_walk(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
+    async fn receive_auto_walk<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
         let position = message.read_position(self.protocol).await?;
         log::trace!("Auto walk to {position:?}");
 
         Ok(())
     }
 
-    async fn receive_walk(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
+    async fn receive_walk<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
         let direction: Direction = message.read_u8().await?.try_into()?;
         log::trace!("Walk 1 tile {direction:?}");
 
@@ -398,7 +405,7 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_chat(&mut self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
+    async fn receive_chat<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
         let length = message.read_u16_le().await?;
         let config = crate::config::CONFIG.get().unwrap();
 
@@ -466,7 +473,7 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_comment(&self, message: &mut Cursor<Vec<u8>>) -> Result<()> {
+    async fn receive_comment<R: AsyncRead + Unpin>(&self, message: &mut R) -> Result<()> {
         let mut msg = String::new();
         unsafe { message.read_string_until_end(&mut msg).await? };
 

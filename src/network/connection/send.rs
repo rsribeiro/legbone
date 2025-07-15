@@ -19,61 +19,56 @@ use std::{
 use tokio::io::AsyncWriteExt;
 
 impl Connection {
-    async fn send_message(&mut self, message: &[u8]) -> Result<()> {
-        self.stream
-            .write_u16_le(message.len() as u16 + 2)
-            .await?;
-        self.stream.write_all(message).await?;
-        self.stream.flush().await?;
-
-        // log::trace!("SENDING: {:02x?} (len={})", message, message.len());
-        // log::trace!("SENDING: len={}", message.len());
-
+    pub async fn send_error(&mut self, err: Error) -> Result<()> {
+        log::warn!("Sending error {err:?} to client");
+        self.queue_message(self.prepare_error(&err.to_string()).await?).await;
+        self.flush_message_queue().await?;
         Ok(())
     }
 
-    pub async fn flush_message_queue(&mut self) -> Result<()> {
+    async fn assemble_message(&self) -> Result<Vec<u8>> {
         if !self.message_queue.is_empty() {
             if self.protocol > Protocol::Tibia501 {
-                self.send_big_message().await?;
+                self.assemble_big_message().await
             } else {
-                self.send_individual_messages().await?;
+                self.assemble_individual_messages().await
             }
+        } else {
+            Ok(vec![])
         }
+    }
+
+    pub async fn flush_message_queue(&mut self) -> Result<()> {
+        let message = self.assemble_message().await?;
+        self.stream.write_all(&message).await?;
+        self.stream.flush().await?;
         Ok(())
     }
 
     /// For older clients, sends each message individually. Sends length + actual message
     /// for every queued message.
-    async fn send_individual_messages(&mut self) -> Result<()> {
+    async fn assemble_individual_messages(&self) -> Result<Vec<u8>> {
         let mut big_message = Cursor::new(Vec::<u8>::new());
         while let Some(message) = self.message_queue.pop() {
-            big_message
-                .write_u16_le(message.len() as u16 + 2)
-                .await?;
+            big_message.write_u16_le(message.len() as u16 + 2).await?;
             big_message.write_all(&message).await?;
-            log::trace!("SENDING: {:02x?} (len={})", message, message.len());
         }
-
-        let message = big_message.into_inner();
-        self.stream.write_all(&message).await?;
-        self.stream.flush().await?;
-
-        // log::trace!("SENDING: {:02x?} (len={})", message, message.len());
-        // log::trace!("SENDING: len={}", message.len());
-
-        Ok(())
+        Ok(big_message.into_inner())
     }
 
     /// For newer clients, send all queued messages as one, concatenating every message,
     /// with just one length
-    async fn send_big_message(&mut self) -> Result<()> {
-        let mut big_message = Cursor::new(Vec::<u8>::new());
+    async fn assemble_big_message(&self) -> Result<Vec<u8>> {
+        let mut big_message = Cursor::new(vec![]);
         while let Some(message) = self.message_queue.pop() {
             big_message.write_all(&message).await?;
         }
 
-        self.send_message(big_message.into_inner().as_slice()).await
+        let big_message = big_message.into_inner();
+        let mut final_message = Cursor::new(vec![]);
+        final_message.write_u16_le(big_message.len() as u16 + 2).await?;
+        final_message.write_all(&big_message).await?;
+        Ok(final_message.into_inner())
     }
 
     pub async fn queue_message(&self, message: Vec<u8>) {
@@ -98,12 +93,6 @@ impl Connection {
         buf.write_null_terminated_string(message).await?;
 
         Ok(buf.into_inner())
-    }
-
-    pub async fn send_error(&mut self, err: Error) -> Result<()> {
-        log::info!("Sending error {err:?} to client");
-        self.send_message(&self.prepare_error(&err.to_string()).await?)
-            .await
     }
 
     async fn prepare_login(&self) -> Result<Vec<u8>> {

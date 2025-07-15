@@ -187,19 +187,18 @@ async fn account_login(
 
         //Awaits connection be terminated by client, which will connect again using the chosen character
         loop {
-            match timeout(Duration::from_secs(1), stream.flush()).await {
+            match timeout(Duration::from_secs(1), stream.read_u8()).await {
+                Ok(Ok(_)) => { /* Do nothing */ },
+                Ok(Err(err)) if err.kind() == std::io::ErrorKind::UnexpectedEof || err.kind() == std::io::ErrorKind::ConnectionReset => {
+                    log::info!("Client disconnected after receiving character list ({:?}).", err.kind());
+                    break;
+                },
+                Ok(Err(err)) if err.kind() == std::io::ErrorKind::TimedOut => { /* Do nothing */ },
+                Ok(Err(err)) => {
+                    log::error!("Connection ended ({:?})", err.kind());
+                    return Err(err.into())
+                },
                 Err(_elapsed) => { /* Do nothing */ }
-                Ok(inner) => {
-                    match inner {
-                        Ok(_) => { /* Do nothing */ },
-                        Err(err) if err.kind() == std::io::ErrorKind::TimedOut => { /* Do nothing */ },
-                        Err(err) if err.kind() == std::io::ErrorKind::UnexpectedEof => {
-                            log::info!("Client disconnected after receiving character list.");
-                            break;
-                        },
-                        Err(err) => return Err(err.into()),
-                    }
-                }
             }
         }
 

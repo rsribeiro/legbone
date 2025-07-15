@@ -48,7 +48,7 @@ impl Connection {
     /// For older clients, sends each message individually. Sends length + actual message
     /// for every queued message.
     async fn assemble_individual_messages(&self) -> Result<Vec<u8>> {
-        let mut big_message = Cursor::new(Vec::<u8>::new());
+        let mut big_message = Cursor::new(vec![]);
         while let Some(message) = self.message_queue.pop() {
             big_message.write_u16_le(message.len() as u16 + 2).await?;
             big_message.write_all(&message).await?;
@@ -78,7 +78,7 @@ impl Connection {
     }
 
     pub async fn prepare_info(&self, message: &str) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         buf.write_header(HeaderSend::Info, self.protocol).await?;
         buf.write_null_terminated_string(message).await?;
@@ -87,7 +87,7 @@ impl Connection {
     }
 
     pub async fn prepare_error(&self, message: &str) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         buf.write_header(HeaderSend::Error, self.protocol).await?;
         buf.write_null_terminated_string(message).await?;
@@ -96,7 +96,7 @@ impl Connection {
     }
 
     async fn prepare_login(&self) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         buf.write_header(HeaderSend::Login, self.protocol).await?;
         if self.protocol >= Protocol::Tibia300 {
@@ -203,7 +203,7 @@ impl Connection {
     }
 
     pub async fn prepare_world_light(&self, light_level: u8) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         buf.write_header(HeaderSend::WorldLight, self.protocol)
             .await?;
@@ -218,7 +218,7 @@ impl Connection {
         outfit: OutfitType,
         outfit_colors: OutfitColors,
     ) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         if self.protocol == Protocol::Tibia103 {
             // buf.write_header(HeaderSend::UpdateObject, self.protocol).await?;
@@ -242,7 +242,7 @@ impl Connection {
         update_type: CharacterUpdateType,
         value: u8,
     ) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         buf.write_header(HeaderSend::UpdateCharacter, self.protocol)
             .await?;
@@ -259,7 +259,7 @@ impl Connection {
         update_type: ObjectUpdateType,
         stack_pos: u8,
     ) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         if self.protocol == Protocol::Tibia103 {
             // buf.write_header(HeaderSend::UpdateObject, self.protocol).await?;
@@ -287,7 +287,7 @@ impl Connection {
         effect: MagicEffect,
         position: Position,
     ) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         buf.write_header(HeaderSend::MagicEffect, self.protocol)
             .await?;
@@ -298,7 +298,7 @@ impl Connection {
     }
 
     pub async fn prepare_skills(&self) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         let skills = self.player.skills;
 
@@ -332,7 +332,7 @@ impl Connection {
         height: u16,
         layers: u8,
     ) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         buf.write_header(HeaderSend::Map, self.protocol).await?;
         buf.write_position(self.player.position, self.protocol)
@@ -354,7 +354,7 @@ impl Connection {
         height: u16,
         layers: u8,
     ) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         let corner = position - (((width as i16 - 1) / 2), ((height as i16 - 1) / 2), 0);
         let corner_2 = corner + (width as i16 - 1, height as i16 - 1, layers as i8 - 1);
@@ -387,7 +387,7 @@ impl Connection {
         width: u16,
         height: u16,
     ) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         for x in 0..width {
             for y in 0..height {
@@ -400,7 +400,7 @@ impl Connection {
     }
 
     async fn prepare_tile(&self, position: Position) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
         if let Some(tile) = MAP.get().unwrap().get_tile_objects(position) {
             for tile_object in tile {
                 match tile_object {
@@ -448,7 +448,7 @@ impl Connection {
 
     async fn prepare_player_character(&self) -> Result<Vec<u8>> {
         if self.protocol == Protocol::Tibia103 {
-            let mut buf = Cursor::new(Vec::<u8>::new());
+            let mut buf = Cursor::new(vec![]);
             buf.write_u8(AuxiliaryHeaderSend::Character as u8).await?;
             buf.write_outfit_colors(self.player.outfit).await?;
             Ok(buf.into_inner())
@@ -463,7 +463,7 @@ impl Connection {
     }
 
     async fn prepare_character(&self, id: u32, name: &str, outfit: Outfit) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         buf.write_u8(AuxiliaryHeaderSend::Character as u8).await?;
         buf.write_u32_le(0).await?; //knows creature
@@ -482,7 +482,7 @@ impl Connection {
     }
 
     pub async fn prepare_status_message(&self, status: &str) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         buf.write_header(HeaderSend::StatusMessage, self.protocol)
             .await?;
@@ -496,7 +496,7 @@ impl Connection {
         message_number: u16,
         message: &str,
     ) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         buf.write_header(HeaderSend::MessageOfTheDay, self.protocol)
             .await?;
@@ -516,7 +516,7 @@ impl Connection {
         item: u16,
         stack: u8,
     ) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         buf.write_header(HeaderSend::EquippedItem, self.protocol)
             .await?;
@@ -533,7 +533,7 @@ impl Connection {
     }
 
     pub async fn prepare_stats(&self) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         let stats = self.player.stats;
         buf.write_header(HeaderSend::Stats, self.protocol).await?;
@@ -579,7 +579,7 @@ impl Connection {
         sender: Option<&Player>,
         position: Option<Position>,
     ) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         let position = match self.protocol {
             Protocol::Tibia300 => position.map(|p| p + (1, 1, 0)),
@@ -601,7 +601,7 @@ impl Connection {
     }
 
     pub async fn prepare_user_info(&self, player_name: &str) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         buf.write_header(HeaderSend::UserInfo, self.protocol)
             .await?;
@@ -613,7 +613,7 @@ impl Connection {
     }
 
     pub async fn prepare_user_list(&self) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         buf.write_header(HeaderSend::UserList, self.protocol)
             .await?;
@@ -631,7 +631,7 @@ impl Connection {
     }
 
     pub async fn prepare_data_window(&self) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         buf.write_header(HeaderSend::DataWindow, self.protocol)
             .await?;
@@ -657,7 +657,7 @@ impl Connection {
     }
 
     pub async fn prepare_open_container(&self) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         buf.write_header(HeaderSend::OpenContainer, self.protocol)
             .await?;
@@ -676,7 +676,7 @@ impl Connection {
     }
 
     pub async fn prepare_close_container(&self, local_id: u8) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         buf.write_header(HeaderSend::CloseContainer, self.protocol)
             .await?;
@@ -686,7 +686,7 @@ impl Connection {
     }
 
     pub async fn prepare_change_direction(&self, id: u32, direction: Direction) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         if self.protocol == Protocol::Tibia103 {
         } else {
@@ -705,7 +705,7 @@ impl Connection {
         from: Position,
         to: Position,
     ) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         log::trace!(
             "move character from {from:?} to {to:?}, direction={direction:?}"
@@ -748,7 +748,7 @@ impl Connection {
         _sender: Option<&Player>,
         _position: Option<Position>,
     ) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
 
         // let position = match self.protocol {
         //     Protocol::Tibia300 => position.map(|p| p + (1,1,0)),
@@ -769,7 +769,7 @@ impl Connection {
     }
 
     pub async fn prepare_unknown_0x0000(&self) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
         buf.write_header(HeaderSend::Unknown0x0000, self.protocol)
             .await?;
 
@@ -777,7 +777,7 @@ impl Connection {
     }
 
     pub async fn prepare_unknown_0x000f(&self) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
         buf.write_header(HeaderSend::Unknown0x000f, self.protocol)
             .await?;
 
@@ -785,7 +785,7 @@ impl Connection {
     }
 
     pub async fn prepare_unknown_0x0033(&self) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
         buf.write_header(HeaderSend::Unknown0x0033, self.protocol)
             .await?;
 
@@ -793,7 +793,7 @@ impl Connection {
     }
 
     pub async fn prepare_unknown_0x0034(&self) -> Result<Vec<u8>> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
         buf.write_header(HeaderSend::Unknown0x0034, self.protocol)
             .await?;
 
@@ -812,7 +812,7 @@ pub async fn prepare_character_list(server_address: SocketAddr) -> Result<Vec<u8
             let character_name = "Player";
             let world = "legbone";
 
-            let mut buf = Cursor::new(Vec::<u8>::new());
+            let mut buf = Cursor::new(vec![]);
             buf.write_u8(0x64).await?;
             buf.write_u8(chararacter_count).await?;
             for _ in 0..chararacter_count {

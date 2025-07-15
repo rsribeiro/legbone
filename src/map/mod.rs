@@ -415,7 +415,7 @@ impl MapMetadata {
 
 impl Tile {
     const fn empty() -> Tile {
-        Tile(Vec::new())
+        Tile(vec![])
     }
 
     fn with_object(tile_object: TileObject) -> Tile {

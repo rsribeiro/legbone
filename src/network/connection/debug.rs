@@ -146,7 +146,7 @@ impl Connection {
     }
 
     async fn command_echo(&self) -> Result<()> {
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
         buf.write_header(HeaderSend::Echo, self.protocol).await?;
         self.queue_message(buf.into_inner()).await;
         Ok(())

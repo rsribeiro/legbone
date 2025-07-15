@@ -210,7 +210,7 @@ mod tests {
     async fn test_read_write_gender() -> Result<()> {
         let gender_before = Gender::Female;
 
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
         buf.write_gender(gender_before, Protocol::Tibia300).await?;
 
         let mut buf = Cursor::new(buf.into_inner());
@@ -225,7 +225,7 @@ mod tests {
     async fn test_read_write_outfit_colors() -> Result<()> {
         let outfit_before = OutfitColors::new_with_unknown_byte(1, 2, 3, 4, 5);
 
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
         buf.write_outfit_colors(outfit_before).await?;
 
         let mut buf = Cursor::new(buf.into_inner());
@@ -241,7 +241,7 @@ mod tests {
         let position_before = Position::new(1, 2, 3);
         let protocol = Protocol::Tibia650;
 
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
         buf.write_position(position_before, protocol).await?;
 
         let mut buf = Cursor::new(buf.into_inner());
@@ -257,7 +257,7 @@ mod tests {
         let high_before = 1;
         let low_before = 2;
 
-        let mut buf = Cursor::new(Vec::<u8>::new());
+        let mut buf = Cursor::new(vec![]);
         buf.write_u4(high_before, low_before).await?;
 
         let mut buf = Cursor::new(buf.into_inner());

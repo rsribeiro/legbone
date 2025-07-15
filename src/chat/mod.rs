@@ -3,6 +3,7 @@ use std::convert::TryFrom;
 
 pub mod encoding;
 
+#[allow(unused)]
 pub struct InvalidChatQualifier(Option<char>);
 
 #[repr(u8)]

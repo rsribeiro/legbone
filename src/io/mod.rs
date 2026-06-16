@@ -143,7 +143,7 @@ pub trait WriteExt: AsyncWrite + Unpin + Sized {
     /// For Tibia 3.x and 4.x the client receives an u8 header. Later clients use u16
     /// Client 1.03 seems to need 4 bytes before header. Meaning of bytes unknown
     async fn write_header(&mut self, header: HeaderSend, protocol: Protocol) -> Result<()> {
-        if protocol > Protocol::Tibia400 {
+        if protocol >= Protocol::Tibia501 {
             self.write_u16_le(header as u16).await?;
         } else {
             if protocol == Protocol::Tibia103 {

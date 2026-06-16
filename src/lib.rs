@@ -18,6 +18,7 @@ pub enum Protocol {
     Tibia300 = 300,
     Tibia310 = 310,
     Tibia400 = 400,
+    Tibia411 = 411,
     Tibia412 = 412,
     Tibia501 = 501,
     Tibia510 = 510,

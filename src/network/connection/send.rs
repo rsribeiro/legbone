@@ -303,7 +303,7 @@ impl Connection {
         let skills = self.player.skills;
 
         buf.write_header(HeaderSend::Skills, self.protocol).await?;
-        if self.protocol == Protocol::Tibia400 {
+        if self.protocol >= Protocol::Tibia400 && self.protocol < Protocol::Tibia501 {
             buf.write_u8(skills.sword).await?;
             buf.write_u8(skills.club).await?;
             buf.write_u8(skills.gauche).await?;
@@ -500,7 +500,7 @@ impl Connection {
 
         buf.write_header(HeaderSend::MessageOfTheDay, self.protocol)
             .await?;
-        if self.protocol > Protocol::Tibia400 {
+        if self.protocol >= Protocol::Tibia501 {
             buf.write_u16_le(message_number).await?;
             buf.write_u8(0x0a).await?;
         }

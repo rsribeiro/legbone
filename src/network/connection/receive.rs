@@ -47,13 +47,11 @@ impl Connection {
                 Err(_elapsed) => { /* do nothing */ }
             };
 
-            if self.protocol >= Protocol::Tibia300 {
-                if let Ok(msg) = self.receiver.try_recv() {
-                    match msg {
-                        WorldToPlayerMessage::WorldLight(light_level) => {
-                            self.queue_message(self.prepare_world_light(light_level).await?)
-                                .await
-                        }
+            if self.protocol >= Protocol::Tibia300
+            && let Ok(msg) = self.receiver.try_recv() {
+                match msg {
+                    WorldToPlayerMessage::WorldLight(light_level) => {
+                        self.queue_message(self.prepare_world_light(light_level).await?).await
                     }
                 }
             }
@@ -159,7 +157,7 @@ impl Connection {
         let mut player_name = String::new();
         unsafe { message.read_string_until_end(&mut player_name).await? };
         self.queue_message(self.prepare_user_info(&player_name).await?)
-            .await;
+        .await;
 
         Ok(())
     }
@@ -171,28 +169,28 @@ impl Connection {
 
     async fn receive_push<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
         let (position_from, object_id, stack_pos, position_to, count) =
-            if self.protocol == Protocol::Tibia103 {
-                let position_from = message.read_position(self.protocol).await?;
-                let object_id = message.read_u16_le().await?;
-                let stack_pos = message.read_u8().await?;
-                let position_to = message.read_position(self.protocol).await?;
+        if self.protocol == Protocol::Tibia103 {
+            let position_from = message.read_position(self.protocol).await?;
+            let object_id = message.read_u16_le().await?;
+            let stack_pos = message.read_u8().await?;
+            let position_to = message.read_position(self.protocol).await?;
 
-                (position_from, object_id, stack_pos, position_to, None)
-            } else {
-                let position_from = message.read_position(self.protocol).await?;
-                let object_id = message.read_u16_le().await?;
-                let stack_pos = message.read_u8().await?;
-                let position_to = message.read_position(self.protocol).await?;
-                let count = message.read_u8().await?;
+            (position_from, object_id, stack_pos, position_to, None)
+        } else {
+            let position_from = message.read_position(self.protocol).await?;
+            let object_id = message.read_u16_le().await?;
+            let stack_pos = message.read_u8().await?;
+            let position_to = message.read_position(self.protocol).await?;
+            let count = message.read_u8().await?;
 
-                (
-                    position_from,
-                    object_id,
-                    stack_pos,
-                    position_to,
-                    Some(count),
-                )
-            };
+            (
+                position_from,
+                object_id,
+                stack_pos,
+                position_to,
+                Some(count),
+            )
+        };
 
         let msg_from = match position_from.get_qualifier(self.protocol)? {
             PositionQualifier::None => format!("{position_from}"),
@@ -259,7 +257,7 @@ impl Connection {
 
         self.queue_message(
             self.prepare_update_outfit(self.player.id, OutfitType::Human, outfit)
-                .await?,
+            .await?,
         )
         .await;
         self.player.outfit = outfit;
@@ -300,7 +298,7 @@ impl Connection {
         let local_id = message.read_u8().await?;
 
         self.queue_message(self.prepare_close_container(local_id).await?)
-            .await;
+        .await;
 
         Ok(())
     }
@@ -341,11 +339,11 @@ impl Connection {
 
         //todo use real stack pos
         let mut msg = self
-            .prepare_update_object(self.player.position, ObjectUpdateType::Update, 1)
-            .await?;
+        .prepare_update_object(self.player.position, ObjectUpdateType::Update, 1)
+        .await?;
         msg.extend(
             self.prepare_change_direction(self.player.id, direction)
-                .await?,
+            .await?,
         );
         self.queue_message(msg).await;
 
@@ -380,17 +378,17 @@ impl Connection {
         } else {
             // Remove character from old tile
             let msg = self
-                .prepare_update_object(old_position, ObjectUpdateType::Remove, 1)
-                .await?;
+            .prepare_update_object(old_position, ObjectUpdateType::Remove, 1)
+            .await?;
             self.queue_message(msg).await;
 
             // Add character to new tile
             let mut msg = self
-                .prepare_update_object(new_position, ObjectUpdateType::Add, 1)
-                .await?;
+            .prepare_update_object(new_position, ObjectUpdateType::Add, 1)
+            .await?;
             msg.extend(
                 self.prepare_change_direction(self.player.id, direction)
-                    .await?,
+                .await?,
             );
             self.queue_message(msg).await;
         }
@@ -398,7 +396,7 @@ impl Connection {
         //Move character and update map
         self.queue_message(
             self.prepare_move_character(direction, old_position, new_position)
-                .await?,
+            .await?,
         )
         .await;
 
@@ -439,7 +437,7 @@ impl Connection {
         if let Err(err) = self.send_debug_command(msg).await {
             self.queue_message(
                 self.prepare_magic_effect(MagicEffect::Puff, self.player.position)
-                    .await?,
+                .await?,
             )
             .await;
             log::trace!("Error on debug command: {err:?}");
@@ -465,7 +463,7 @@ impl Connection {
             Err(_err) => {
                 self.queue_message(
                     self.prepare_magic_effect(MagicEffect::Puff, self.player.position)
-                        .await?,
+                    .await?,
                 )
                 .await;
             }

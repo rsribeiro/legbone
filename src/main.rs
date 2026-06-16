@@ -49,31 +49,31 @@ async fn main() -> Result<()> {
 
     // Build a stdout logger.
     let stdout = ConsoleAppender::builder()
-        .encoder(Box::new(PatternEncoder::new("[{h({l}):<5.5}] {m}{n}")))
-        .target(Target::Stdout)
-        .build();
+    .encoder(Box::new(PatternEncoder::new("[{h({l}):<5.5}] {m}{n}")))
+    .target(Target::Stdout)
+    .build();
 
     // Build file logger
     let logfile = log4rs::append::file::FileAppender::builder()
-        .encoder(Box::new(PatternEncoder::new("{M} [{h({l}):<5.5}] {m}{n}")))
-        .append(false)
-        .build("log.log")?;
+    .encoder(Box::new(PatternEncoder::new("{M} [{h({l}):<5.5}] {m}{n}")))
+    .append(false)
+    .build("log.log")?;
 
     // Log Trace level output to file where trace is the default level
     // and the programmatically specified level to stdout
     let log_config = Config::builder()
-        .appender(Appender::builder().build("file", Box::new(logfile)))
-        .appender(
-            Appender::builder()
-                .filter(Box::new(ThresholdFilter::new(log_level)))
-                .build("stdout", Box::new(stdout)),
-        )
-        .build(
-            Root::builder()
-                .appender("file")
-                .appender("stdout")
-                .build(LevelFilter::Trace),
-        )?;
+    .appender(Appender::builder().build("file", Box::new(logfile)))
+    .appender(
+        Appender::builder()
+        .filter(Box::new(ThresholdFilter::new(log_level)))
+        .build("stdout", Box::new(stdout)),
+    )
+    .build(
+        Root::builder()
+        .appender("file")
+        .appender("stdout")
+        .build(LevelFilter::Trace),
+    )?;
 
     // Use this to change log levels at runtime
     // This means you can change the default log level to trace
@@ -123,12 +123,10 @@ async fn game_loop(
             log::info!("New connection: {}", stream.peer_addr().unwrap());
             match Connection::handle_login(stream, sender_clone).await {
                 Ok(connection) => {
-                    if let Some(mut connection) = connection {
-                        if let Err(err) = connection.handle_connection().await {
-                            if let Err(err) = connection.send_error(err).await {
-                                log::error!("Error sending error to client: {err}");
-                            }
-                        }
+                    if let Some(mut connection) = connection
+                    && let Err(err) = connection.handle_connection().await
+                    && let Err(err) = connection.send_error(err).await {
+                        log::error!("Error sending error to client: {err}");
                     }
                 }
                 Err(err) => log::error!("Error on client login: {err}"),

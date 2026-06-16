@@ -121,7 +121,7 @@ impl Map {
                 let x = x + offset_x;
                 let y = y + offset_y;
 
-                let tile_id = if (x + y) % 2 == 0 { 0x010c } else { 0x0113 };
+                let tile_id = if (x + y).is_multiple_of(2) { 0x010c } else { 0x0113 };
 
                 let position = Position::new(x, y, 7);
                 if let Some(tile) = map.get_mut(&position) {

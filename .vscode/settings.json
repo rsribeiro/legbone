@@ -1,3 +1,9 @@
 {
     "debug.allowBreakpointsEverywhere": true,
+    "files.exclude": {
+        "**/target/**": true
+    },
+    "files.watcherExclude": {
+        "**/target/**": true
+    },
 }

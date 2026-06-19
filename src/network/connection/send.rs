@@ -16,9 +16,13 @@ use std::{
     io::Cursor,
     net::SocketAddr
 };
-use tokio::io::AsyncWriteExt;
+use tokio::io::{
+    AsyncRead,
+    AsyncWrite,
+    AsyncWriteExt
+};
 
-impl Connection {
+impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> Connection<R, W> {
     pub async fn send_error(&mut self, err: Error) -> Result<()> {
         log::warn!("Sending error {err:?} to client");
         self.queue_message(self.prepare_error(&err.to_string()).await?).await;
@@ -40,8 +44,8 @@ impl Connection {
 
     pub async fn flush_message_queue(&mut self) -> Result<()> {
         let message = self.assemble_message().await?;
-        self.stream.write_all(&message).await?;
-        self.stream.flush().await?;
+        self.write_half.write_all(&message).await?;
+        self.write_half.flush().await?;
         Ok(())
     }
 

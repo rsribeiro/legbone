@@ -2,7 +2,11 @@ use anyhow::Result;
 use tokio::{
     net::TcpListener,
     task,
-    sync::RwLock
+    sync::RwLock,
+    io::{
+        BufReader,
+        BufWriter
+    }
 };
 use clap::Parser;
 use legbone::{
@@ -115,21 +119,27 @@ async fn game_loop(
     };
 
     while let Some(stream) =  listener.next().await {
-        let stream = stream?;
+        let mut stream = stream?;
 
         let sender_clone = sender.clone();
 
-        let _handle = task::spawn(async {
-            log::info!("New connection: {}", stream.peer_addr().unwrap());
-            match Connection::handle_login(stream, sender_clone).await {
+        let _handle = task::spawn(async move {
+            let local_addr = stream.local_addr().unwrap();
+            let peer_addr = stream.peer_addr().unwrap();
+            log::info!("New connection: {peer_addr}");
+            let (read_half, write_half) = stream.split();
+            let read_half = BufReader::new(read_half);
+            let write_half = BufWriter::new(write_half);
+
+            match Connection::handle_login(read_half, write_half, sender_clone, local_addr, peer_addr).await {
                 Ok(connection) => {
                     if let Some(mut connection) = connection
                     && let Err(err) = connection.handle_connection().await
                     && let Err(err) = connection.send_error(err).await {
-                        log::error!("Error sending error to client: {err}");
+                        log::error!("Error sending error to client: {err:?}");
                     }
                 }
-                Err(err) => log::error!("Error on client login: {err}"),
+                Err(err) => log::error!("Error on client login: {err:?}"),
             }
         });
     }

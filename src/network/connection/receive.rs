@@ -18,19 +18,20 @@ use std::{
 use tokio::{
     io::{
         AsyncReadExt,
-        AsyncRead
+        AsyncRead,
+        AsyncWrite
     },
     time::timeout,
 };
 
-impl Connection {
+impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> Connection<R, W> {
     pub async fn handle_connection(&mut self) -> Result<()> {
         loop {
             //TODO use non blocking io instead of timeout
-            match timeout(Duration::from_millis(100), self.stream.read_u16_le()).await {
+            match timeout(Duration::from_millis(100), self.read_half.read_u16_le()).await {
                 Ok(Ok(length)) => {
                     let mut message = vec![0_u8; length as usize];
-                    self.stream.read_exact(&mut message).await?;
+                    self.read_half.read_exact(&mut message).await?;
                     log::trace!("Message received: length={length}, bytes={message:02x?}");
 
                     self.receive_message(Cursor::new(message)).await?;
@@ -61,7 +62,7 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_message<R: AsyncRead + Unpin>(&mut self, mut message: R) -> Result<bool> {
+    async fn receive_message<M: AsyncRead + Unpin>(&mut self, mut message: M) -> Result<bool> {
         match message.read_u16_le().await?.try_into() {
             Ok(header) => {
                 log::trace!("Message received from client: {header:?}");
@@ -127,17 +128,17 @@ impl Connection {
         Ok(false)
     }
 
-    async fn receive_set_text<R: AsyncRead + Unpin>(&mut self, _message: &mut R) -> Result<()> {
+    async fn receive_set_text<M: AsyncRead + Unpin>(&mut self, _message: &mut M) -> Result<()> {
         log::trace!("received set_text");
         Ok(())
     }
 
-    async fn receive_house_text<R: AsyncRead + Unpin>(&mut self, _message: &mut R) -> Result<()> {
+    async fn receive_house_text<M: AsyncRead + Unpin>(&mut self, _message: &mut M) -> Result<()> {
         log::trace!("received house_text");
         Ok(())
     }
 
-    async fn receive_change_mode<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
+    async fn receive_change_mode<M: AsyncRead + Unpin>(&mut self, message: &mut M) -> Result<()> {
         let fight_mode: FightMode = message.read_u8().await?.try_into()?;
         let fight_stance: FightStance = message.read_u8().await?.try_into()?;
 
@@ -148,12 +149,12 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_exit_battle<R: AsyncRead + Unpin>(&mut self, _message: &mut R) -> Result<()> {
+    async fn receive_exit_battle<M: AsyncRead + Unpin>(&mut self, _message: &mut M) -> Result<()> {
         log::trace!("Exit battle");
         Ok(())
     }
 
-    async fn receive_player_info<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
+    async fn receive_player_info<M: AsyncRead + Unpin>(&mut self, message: &mut M) -> Result<()> {
         let mut player_name = String::new();
         unsafe { message.read_string_until_end(&mut player_name).await? };
         self.queue_message(self.prepare_user_info(&player_name).await?)
@@ -162,12 +163,12 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_user_list<R: AsyncRead + Unpin>(&mut self, _message: &mut R) -> Result<()> {
+    async fn receive_user_list<M: AsyncRead + Unpin>(&mut self, _message: &mut M) -> Result<()> {
         self.queue_message(self.prepare_user_list().await?).await;
         Ok(())
     }
 
-    async fn receive_push<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
+    async fn receive_push<M: AsyncRead + Unpin>(&mut self, message: &mut M) -> Result<()> {
         let (position_from, object_id, stack_pos, position_to, count) =
         if self.protocol == Protocol::Tibia103 {
             let position_from = message.read_position(self.protocol).await?;
@@ -219,7 +220,7 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_set_data<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
+    async fn receive_set_data<M: AsyncRead + Unpin>(&mut self, message: &mut M) -> Result<()> {
         let outfit = if self.protocol <= Protocol::Tibia501 {
             let mut password = String::new();
             message.read_string(&mut password, 30).await?;
@@ -265,19 +266,19 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_change_data<R: AsyncRead + Unpin>(&mut self, _message: &mut R) -> Result<()> {
+    async fn receive_change_data<M: AsyncRead + Unpin>(&mut self, _message: &mut M) -> Result<()> {
         self.queue_message(self.prepare_data_window().await?).await;
         Ok(())
     }
 
-    async fn receive_set_target<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
+    async fn receive_set_target<M: AsyncRead + Unpin>(&mut self, message: &mut M) -> Result<()> {
         let target_id = message.read_u32_le().await?;
         log::trace!("Set target, id={target_id}");
 
         Ok(())
     }
 
-    async fn receive_use_item<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
+    async fn receive_use_item<M: AsyncRead + Unpin>(&mut self, message: &mut M) -> Result<()> {
         let item_type = message.read_u8().await?; //1 = regular, 2 = usable with
         let pos = message.read_position(self.protocol).await?;
         let item_id = message.read_u16_le().await?;
@@ -294,7 +295,7 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_close_container<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
+    async fn receive_close_container<M: AsyncRead + Unpin>(&mut self, message: &mut M) -> Result<()> {
         let local_id = message.read_u8().await?;
 
         self.queue_message(self.prepare_close_container(local_id).await?)
@@ -303,7 +304,7 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_look_at<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
+    async fn receive_look_at<M: AsyncRead + Unpin>(&mut self, message: &mut M) -> Result<()> {
         let position = message.read_position(self.protocol).await?;
 
         let msg = match position.get_qualifier(self.protocol)? {
@@ -333,7 +334,7 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_change_direction<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
+    async fn receive_change_direction<M: AsyncRead + Unpin>(&mut self, message: &mut M) -> Result<()> {
         let direction: Direction = message.read_u8().await?.try_into()?;
         log::trace!("Change direction to {direction:?}");
 
@@ -350,14 +351,14 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_auto_walk<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
+    async fn receive_auto_walk<M: AsyncRead + Unpin>(&mut self, message: &mut M) -> Result<()> {
         let position = message.read_position(self.protocol).await?;
         log::trace!("Auto walk to {position:?}");
 
         Ok(())
     }
 
-    async fn receive_walk<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
+    async fn receive_walk<M: AsyncRead + Unpin>(&mut self, message: &mut M) -> Result<()> {
         let direction: Direction = message.read_u8().await?.try_into()?;
         log::trace!("Walk 1 tile {direction:?}");
 
@@ -403,7 +404,7 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_chat<R: AsyncRead + Unpin>(&mut self, message: &mut R) -> Result<()> {
+    async fn receive_chat<M: AsyncRead + Unpin>(&mut self, message: &mut M) -> Result<()> {
         let length = message.read_u16_le().await?;
         let config = crate::config::CONFIG.get().unwrap();
 
@@ -471,7 +472,7 @@ impl Connection {
         Ok(())
     }
 
-    async fn receive_comment<R: AsyncRead + Unpin>(&self, message: &mut R) -> Result<()> {
+    async fn receive_comment<M: AsyncRead + Unpin>(&self, message: &mut M) -> Result<()> {
         let mut msg = String::new();
         unsafe { message.read_string_until_end(&mut msg).await? };
 

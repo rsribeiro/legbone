@@ -7,6 +7,10 @@ use crate::{
     network::header::HeaderSend,
     Protocol,
 };
+use tokio::io::{
+    AsyncRead,
+    AsyncWrite
+};
 use anyhow::{
     Result,
     anyhow
@@ -17,7 +21,7 @@ use std::{
     sync::atomic::{AtomicU16, AtomicU8, Ordering},
 };
 
-impl Connection {
+impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> Connection<R, W> {
     pub async fn send_debug_command(&mut self, command: &str) -> Result<()> {
         let mut args = command.split_ascii_whitespace();
         if let Some(command) = args.next() {
